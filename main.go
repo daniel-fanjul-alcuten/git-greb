@@ -15,6 +15,8 @@ var (
 	quiet   bool
 	verbose bool
 	noop    bool
+
+	rebase bool
 )
 
 func init() {
@@ -28,7 +30,8 @@ func init() {
 	flag.BoolVar(&noop, "n", false,
 		"noop: it does not run the commands.")
 
-	// TODO(dfanjul): rebase := flag.Bool("r", false, "rebase")
+	flag.BoolVar(&rebase, "r", false,
+		"it pulls with --rebase.")
 	// TODO(dfanjul): merge := flag.Bool("m", false, "merge")
 	// TODO(dfanjul): interactive := flag.Bool("i", false, "interactive")
 }
@@ -222,7 +225,12 @@ func processBranch(branch string) (err error) {
 		}
 	}
 
-	cmd = NewCommand(!quiet, true, "git", "pull")
+	args := []string{"pull"}
+	if rebase {
+		args = append(args, "--rebase")
+	}
+
+	cmd = NewCommand(!quiet, true, "git", args...)
 	if !noop {
 		cmd.Stdout = os.Stdout
 		if err = cmd.Run(); err != nil {
