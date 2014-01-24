@@ -36,11 +36,11 @@ func init() {
 func main() {
 
 	flag.Parse()
-	// TODO(dfanjul): select branches
+	branches := flag.Args()
 
 	getGitColors()
 
-	if err := greb(); err != nil {
+	if err := greb(branches); err != nil {
 		logFatal(err)
 	}
 }
@@ -92,19 +92,15 @@ func getColors(color bool) (blue, reset string) {
 	return
 }
 
-func greb() (err error) {
+func greb(branches []string) (err error) {
 
-	var branches []string
-	if branches, err = getBranches(); err != nil {
-		return
-	}
-
-	graph := make(map[string]string, len(branches))
-	for _, branch := range branches {
-		tracking, _ := getTrackingBranch(branch)
-		if tracking != "" {
-			graph[branch] = tracking
+	var graph map[string]string
+	if len(branches) == 0 {
+		if graph, err = getGraphForAllBranches(); err != nil {
+			return
 		}
+	} else {
+		graph = getGraphForUserBranches(branches)
 	}
 
 	for {
@@ -121,6 +117,43 @@ func greb() (err error) {
 		}
 		if len(graph) == l {
 			break
+		}
+	}
+	return
+}
+
+func getGraphForAllBranches() (graph map[string]string, err error) {
+
+	var branches []string
+	if branches, err = getBranches(); err != nil {
+		return
+	}
+
+	graph = make(map[string]string, len(branches))
+	for _, branch := range branches {
+		tracking, _ := getTrackingBranch(branch)
+		if tracking != "" {
+			graph[branch] = tracking
+		}
+	}
+	return
+}
+
+func getGraphForUserBranches(branches []string) (graph map[string]string) {
+
+	graph = make(map[string]string, len(branches))
+	pending := append([]string(nil), branches...)
+	processed := make(map[string]struct{}, len(branches))
+	for len(pending) > 0 {
+		var branch string
+		branch, pending = pending[0], pending[1:]
+		if _, ok := processed[branch]; !ok {
+			processed[branch] = struct{}{}
+			tracking, _ := getTrackingBranch(branch)
+			if tracking != "" {
+				graph[branch] = tracking
+				pending = append(pending, tracking)
+			}
 		}
 	}
 	return
