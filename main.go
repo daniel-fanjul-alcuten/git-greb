@@ -17,6 +17,7 @@ var (
 	noop    bool
 
 	rebase bool
+	merge  bool
 )
 
 func init() {
@@ -32,13 +33,17 @@ func init() {
 
 	flag.BoolVar(&rebase, "r", false,
 		"it pulls with --rebase.")
-	// TODO(dfanjul): merge := flag.Bool("m", false, "merge")
+	flag.BoolVar(&merge, "m", false,
+		"it pulls with --no-rebase.")
 	// TODO(dfanjul): interactive := flag.Bool("i", false, "interactive")
 }
 
 func main() {
 
 	flag.Parse()
+	if rebase && merge {
+		rebase, merge = false, false
+	}
 	branches := flag.Args()
 
 	getGitColors()
@@ -228,6 +233,8 @@ func processBranch(branch string) (err error) {
 	args := []string{"pull"}
 	if rebase {
 		args = append(args, "--rebase")
+	} else if merge {
+		args = append(args, "--no-rebase")
 	}
 
 	cmd = NewCommand(!quiet, true, "git", args...)
