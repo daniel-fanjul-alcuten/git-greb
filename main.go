@@ -16,8 +16,9 @@ var (
 	verbose bool
 	noop    bool
 
-	rebase bool
-	merge  bool
+	rebase      bool
+	merge       bool
+	interactive bool
 )
 
 func init() {
@@ -35,7 +36,8 @@ func init() {
 		"it pulls with --rebase.")
 	flag.BoolVar(&merge, "m", false,
 		"it pulls with --no-rebase.")
-	// TODO(dfanjul): interactive := flag.Bool("i", false, "interactive")
+	flag.BoolVar(&interactive, "i", false,
+		"it rebases with --interactive.")
 }
 
 func main() {
@@ -235,10 +237,13 @@ func processBranch(branch string) (err error) {
 		args = append(args, "--rebase")
 	} else if merge {
 		args = append(args, "--no-rebase")
+	} else if interactive {
+		args = []string{"rebase", "--interactive"}
 	}
 
 	cmd = NewCommand(!quiet, true, "git", args...)
 	if !noop {
+		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		if err = cmd.Run(); err != nil {
 			err = CmdError(cmd, err)
