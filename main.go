@@ -1,0 +1,237 @@
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"os/exec"
+	"strings"
+)
+
+var (
+	quiet   bool
+	verbose bool
+	noop    bool
+)
+
+func init() {
+
+	log.SetFlags(0)
+
+	flag.BoolVar(&quiet, "q", false,
+		"quiet: it does not print the command lines.")
+	flag.BoolVar(&verbose, "v", false,
+		"verbose: it explains intermediate steps.")
+	flag.BoolVar(&noop, "n", false,
+		"noop: it does not run the commands.")
+
+	// TODO(dfanjul): rebase := flag.Bool("r", false, "rebase")
+	// TODO(dfanjul): merge := flag.Bool("m", false, "merge")
+	// TODO(dfanjul): interactive := flag.Bool("i", false, "interactive")
+}
+
+func main() {
+
+	flag.Parse()
+	// TODO(dfanjul): select branches
+
+	getGitColors()
+
+	if err := greb(); err != nil {
+		logFatal(err)
+	}
+}
+
+var (
+	blueColor  string
+	resetColor string
+)
+
+func getGitColors() {
+
+	cmd := NewCommand(verbose, false, "git", "config", "--get-colorbool", "color.greb")
+	cmd.Stdout = os.Stdout
+	if err := cmd.Run(); err != nil {
+		if verbose {
+			logPrintf("-> false\n")
+		}
+		return
+	}
+	if verbose {
+		logPrintf("-> true\n")
+	}
+
+	var blue string
+	cmd = NewCommand(verbose, false, "git", "config", "--get-color", "color.greb.branch", "blue")
+	if output, err := cmd.Output(); err != nil {
+		return
+	} else {
+		blue = string(output)
+	}
+
+	cmd = NewCommand(verbose, false, "git", "config", "--get-color", "", "reset")
+	var reset string
+	if output, err := cmd.Output(); err != nil {
+		return
+	} else {
+		reset = string(output)
+	}
+
+	blueColor, resetColor = blue, reset
+	return
+}
+
+func getColors(color bool) (blue, reset string) {
+	if color {
+		blue = blueColor
+		reset = resetColor
+	}
+	return
+}
+
+func greb() (err error) {
+
+	var branches []string
+	if branches, err = getBranches(); err != nil {
+		return
+	}
+
+	graph := make(map[string]string, len(branches))
+	for _, branch := range branches {
+		tracking, _ := getTrackingBranch(branch)
+		if tracking != "" {
+			graph[branch] = tracking
+		}
+	}
+
+	for {
+		l := len(graph)
+		for branch, tracking := range graph {
+			if _, ok := graph[tracking]; ok {
+				// the branch depends on another local branch
+				continue
+			}
+			if err = processBranch(branch); err != nil {
+				return
+			}
+			delete(graph, branch)
+		}
+		if len(graph) == l {
+			break
+		}
+	}
+	return
+}
+
+func getBranches() (branches []string, err error) {
+
+	cmd := NewCommand(verbose, false, "git", "for-each-ref", "refs/heads/",
+		"--format", "%(refname:short)")
+
+	var output io.ReadCloser
+	if output, err = cmd.StdoutPipe(); err != nil {
+		err = CmdError(cmd, err)
+		return
+	}
+	if err = cmd.Start(); err != nil {
+		err = CmdError(cmd, err)
+		return
+	}
+
+	scanner := bufio.NewScanner(output)
+	for scanner.Scan() {
+		text := scanner.Text()
+		branches = append(branches, text)
+	}
+	if verbose {
+		logPrintf("-> %s\n", strings.Join(branches, ", "))
+	}
+
+	if err = cmd.Wait(); err != nil {
+		err = CmdError(cmd, err)
+		return
+	}
+	return
+}
+
+func getTrackingBranch(branch string) (tracking string, err error) {
+
+	cmd := NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
+		"--symbolic-full-name", "--abbrev-ref", branch+"@{u}")
+
+	var output []byte
+	if output, err = cmd.CombinedOutput(); err != nil {
+		err = CmdErrOutput(cmd, err, output)
+		if verbose {
+			logPrintf("-> no branch\n")
+		}
+		return
+	}
+
+	tracking = strings.TrimSpace(string(output))
+	if verbose {
+		logPrintf("-> %s\n", tracking)
+	}
+	return
+}
+
+func processBranch(branch string) (err error) {
+
+	cmd := NewCommand(!quiet, true, "git", "checkout", branch)
+	if !noop {
+		cmd.Stdout = os.Stdout
+		if err = cmd.Run(); err != nil {
+			err = CmdError(cmd, err)
+			return
+		}
+	}
+
+	cmd = NewCommand(!quiet, true, "git", "pull")
+	if !noop {
+		cmd.Stdout = os.Stdout
+		if err = cmd.Run(); err != nil {
+			err = CmdError(cmd, err)
+			return
+		}
+	}
+
+	return
+}
+
+func NewCommand(verbose, color bool, name string, arg ...string) (cmd *exec.Cmd) {
+	cmd = exec.Command(name, arg...)
+	if verbose {
+		blue, reset := getColors(color)
+		logPrintf("%s%s%s\n", blue, CmdArgs(cmd), reset)
+	}
+	return
+}
+
+func CmdArgs(cmd *exec.Cmd) string {
+	args := append([]string(nil), cmd.Args...)
+	for i, arg := range args {
+		if arg == "" {
+			args[i] = "''"
+		}
+	}
+	return strings.Join(args, " ")
+}
+
+func logPrintf(format string, v ...interface{}) {
+	log.Printf("greb: "+format, v...)
+}
+
+func logFatal(err error) {
+	log.Fatalf("greb: %s\n", err)
+}
+
+func CmdError(cmd *exec.Cmd, err error) error {
+	return fmt.Errorf("%s: %s\n", CmdArgs(cmd), err)
+}
+
+func CmdErrOutput(cmd *exec.Cmd, err error, output []byte) error {
+	return fmt.Errorf("%s: %s\n%s\n", CmdArgs(cmd), err, string(output))
+}
