@@ -226,6 +226,7 @@ func processBranch(branch string) (err error) {
 	cmd := NewCommand(!quiet, true, "git", "checkout", branch)
 	if !noop {
 		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		if err = cmd.Run(); err != nil {
 			err = CmdError(cmd, err)
 			return
@@ -245,6 +246,7 @@ func processBranch(branch string) (err error) {
 	if !noop {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		if err = cmd.Run(); err != nil {
 			err = CmdError(cmd, err)
 			return
