@@ -19,6 +19,8 @@ var (
 	rebase      bool
 	merge       bool
 	interactive bool
+
+	remove bool
 )
 
 func init() {
@@ -38,6 +40,9 @@ func init() {
 		"it pulls with --no-rebase (merge).")
 	flag.BoolVar(&interactive, "i", false,
 		"it rebases with --interactive (interactive).")
+
+	flag.BoolVar(&remove, "d", false,
+		"it deletes fully merged branches after pulling (delete).")
 }
 
 func main() {
@@ -113,6 +118,7 @@ func greb(branches []string) (err error) {
 		graph = getGraphForUserBranches(branches)
 	}
 
+	processed := make([]string, 0, len(branches))
 	for {
 		l := len(graph)
 		for branch, tracking := range graph {
@@ -120,15 +126,26 @@ func greb(branches []string) (err error) {
 				// the branch depends on another local branch
 				continue
 			}
-			if err = processBranch(branch); err != nil {
+			if err = pullBranch(branch); err != nil {
 				return
 			}
+			processed = append(processed, branch)
 			delete(graph, branch)
 		}
 		if len(graph) == l {
 			break
 		}
 	}
+
+	if remove {
+		for i := len(processed) - 1; i >= 0; i-- {
+			branch := processed[i]
+			if err = deleteBranch(branch); err != nil {
+				return
+			}
+		}
+	}
+
 	return
 }
 
@@ -221,7 +238,7 @@ func getTrackingBranch(branch string) (tracking string, err error) {
 	return
 }
 
-func processBranch(branch string) (err error) {
+func pullBranch(branch string) (err error) {
 
 	cmd := NewCommand(!quiet, true, "git", "checkout", branch)
 	if !noop {
@@ -250,6 +267,67 @@ func processBranch(branch string) (err error) {
 		if err = cmd.Run(); err != nil {
 			err = CmdError(cmd, err)
 			return
+		}
+	}
+
+	return
+}
+
+func deleteBranch(branch string) (err error) {
+
+	cmd := NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
+		branch)
+
+	var output []byte
+	if output, err = cmd.CombinedOutput(); err != nil {
+		err = CmdErrOutput(cmd, err, output)
+		if verbose {
+			logPrintf("-> %s\n", err)
+		}
+		return
+	}
+
+	hash1 := strings.TrimSpace(string(output))
+	if verbose {
+		logPrintf("-> %s\n", hash1)
+	}
+
+	cmd = NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
+		branch+"@{u}")
+
+	if output, err = cmd.CombinedOutput(); err != nil {
+		err = CmdErrOutput(cmd, err, output)
+		if verbose {
+			logPrintf("-> %s\n", err)
+		}
+		return
+	}
+
+	hash2 := strings.TrimSpace(string(output))
+	if verbose {
+		logPrintf("-> %s\n", hash2)
+	}
+
+	if hash1 == hash2 {
+
+		cmd = NewCommand(!quiet, true, "git", "checkout", branch+"@{u}")
+		if !noop {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err = cmd.Run(); err != nil {
+				err = CmdError(cmd, err)
+				return
+			}
+		}
+
+		cmd = NewCommand(!quiet, true, "git", "branch", "-d", branch)
+		if !noop {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err = cmd.Run(); err != nil {
+				err = CmdError(cmd, err)
+				return
+			}
 		}
 	}
 
