@@ -26,18 +26,18 @@ func init() {
 	log.SetFlags(0)
 
 	flag.BoolVar(&quiet, "q", false,
-		"quiet: it does not print the command lines.")
+		"it does not print the command lines (quiet).")
 	flag.BoolVar(&verbose, "v", false,
-		"verbose: it explains intermediate steps.")
+		"it explains intermediate steps (verbose).")
 	flag.BoolVar(&noop, "n", false,
-		"noop: it does not run the commands.")
+		"it does not run the commands (noop).")
 
 	flag.BoolVar(&rebase, "r", false,
-		"it pulls with --rebase.")
+		"it pulls with --rebase (rebase).")
 	flag.BoolVar(&merge, "m", false,
-		"it pulls with --no-rebase.")
+		"it pulls with --no-rebase (merge).")
 	flag.BoolVar(&interactive, "i", false,
-		"it rebases with --interactive.")
+		"it rebases with --interactive (interactive).")
 }
 
 func main() {
