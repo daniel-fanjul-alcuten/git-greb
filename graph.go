@@ -1,16 +1,26 @@
 package main
 
 type graph struct {
-	direct map[string]string
+	direct  map[string]string
+	reverse map[string]map[string]struct{}
 }
 
 func newGraph() *graph {
 	direct := make(map[string]string)
-	return &graph{direct}
+	reverse := make(map[string]map[string]struct{})
+	return &graph{direct, reverse}
 }
 
 func (g *graph) add(branch, tracking string) {
+
 	g.direct[branch] = tracking
+	if m, ok := g.reverse[tracking]; ok {
+		m[branch] = struct{}{}
+	} else {
+		m = make(map[string]struct{})
+		g.reverse[tracking] = m
+		m[branch] = struct{}{}
+	}
 }
 
 func (g *graph) sort() (branches []string) {
@@ -35,5 +45,22 @@ func (g *graph) sort() (branches []string) {
 		}
 	}
 
+	return
+}
+
+func (g *graph) remove(branch string) (tracking string, branches []string) {
+
+	tracking = g.direct[branch]
+	for b := range g.reverse[branch] {
+		branches = append(branches, b)
+	}
+
+	delete(g.direct, branch)
+	delete(g.reverse, branch)
+	delete(g.reverse[tracking], branch)
+
+	for _, b := range branches {
+		g.add(b, tracking)
+	}
 	return
 }

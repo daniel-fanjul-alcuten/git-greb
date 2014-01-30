@@ -315,6 +315,24 @@ func deleteBranch(g *graph, branch string) (err error) {
 				return
 			}
 		}
+
+		tracking, branches := g.remove(branch)
+		if tracking == "" {
+			return
+		}
+
+		for _, branch := range branches {
+
+			cmd = NewCommand(!quiet, true, "git", "branch", "-u", tracking, branch)
+			if !noop {
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				if err = cmd.Run(); err != nil {
+					err = CmdError(cmd, err)
+					return
+				}
+			}
+		}
 	}
 
 	return
