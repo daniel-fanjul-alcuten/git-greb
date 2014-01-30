@@ -109,38 +109,26 @@ func getColors(color bool) (blue, reset string) {
 
 func greb(branches []string) (err error) {
 
-	var graph map[string]string
+	g := newGraph()
 	if len(branches) == 0 {
-		if graph, err = getGraphForAllBranches(); err != nil {
+		if err = fillGraphForAllBranches(g); err != nil {
 			return
 		}
 	} else {
-		graph = getGraphForUserBranches(branches)
+		fillGraphForUserBranches(g, branches)
 	}
 
-	processed := make([]string, 0, len(branches))
-	for {
-		l := len(graph)
-		for branch, tracking := range graph {
-			if _, ok := graph[tracking]; ok {
-				// the branch depends on another local branch
-				continue
-			}
-			if err = pullBranch(branch); err != nil {
-				return
-			}
-			processed = append(processed, branch)
-			delete(graph, branch)
-		}
-		if len(graph) == l {
-			break
+	sort := g.sort()
+	for _, branch := range sort {
+		if err = pullBranch(branch); err != nil {
+			return
 		}
 	}
 
 	if remove {
-		for i := len(processed) - 1; i >= 0; i-- {
-			branch := processed[i]
-			if err = deleteBranch(branch); err != nil {
+		for i := len(sort) - 1; i >= 0; i-- {
+			branch := sort[i]
+			if err = deleteBranch(g, branch); err != nil {
 				return
 			}
 		}
@@ -149,26 +137,24 @@ func greb(branches []string) (err error) {
 	return
 }
 
-func getGraphForAllBranches() (graph map[string]string, err error) {
+func fillGraphForAllBranches(g *graph) (err error) {
 
 	var branches []string
 	if branches, err = getBranches(); err != nil {
 		return
 	}
 
-	graph = make(map[string]string, len(branches))
 	for _, branch := range branches {
 		tracking, _ := getTrackingBranch(branch)
 		if tracking != "" {
-			graph[branch] = tracking
+			g.add(branch, tracking)
 		}
 	}
 	return
 }
 
-func getGraphForUserBranches(branches []string) (graph map[string]string) {
+func fillGraphForUserBranches(g *graph, branches []string) {
 
-	graph = make(map[string]string, len(branches))
 	pending := append([]string(nil), branches...)
 	processed := make(map[string]struct{}, len(branches))
 	for len(pending) > 0 {
@@ -178,7 +164,7 @@ func getGraphForUserBranches(branches []string) (graph map[string]string) {
 			processed[branch] = struct{}{}
 			tracking, _ := getTrackingBranch(branch)
 			if tracking != "" {
-				graph[branch] = tracking
+				g.add(branch, tracking)
 				pending = append(pending, tracking)
 			}
 		}
@@ -273,7 +259,7 @@ func pullBranch(branch string) (err error) {
 	return
 }
 
-func deleteBranch(branch string) (err error) {
+func deleteBranch(g *graph, branch string) (err error) {
 
 	cmd := NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
 		branch)
