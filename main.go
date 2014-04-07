@@ -109,6 +109,8 @@ func getColors(color bool) (blue, reset string) {
 
 func greb(branches []string) (err error) {
 
+	branch, _ := getBranch()
+
 	g := newGraph()
 	if len(branches) == 0 {
 		if err = fillGraphForAllBranches(g); err != nil {
@@ -134,6 +136,35 @@ func greb(branches []string) (err error) {
 		}
 	}
 
+	if branch != "" {
+		cmd := NewCommand(!quiet, true, "git", "checkout", branch)
+		if !noop {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Run()
+		}
+	}
+
+	return
+}
+
+func getBranch() (branch string, err error) {
+
+	cmd := NewCommand(verbose, false, "git", "symbolic-ref", "-q", "--short",
+		"HEAD")
+	var output []byte
+	if output, err = cmd.CombinedOutput(); err != nil {
+		err = CmdErrOutput(cmd, err, output)
+		if verbose {
+			logPrintf("-> no branch\n")
+		}
+		return
+	}
+
+	branch = strings.TrimSpace(string(output))
+	if verbose {
+		logPrintf("-> %s\n", branch)
+	}
 	return
 }
 
@@ -176,7 +207,6 @@ func getBranches() (branches []string, err error) {
 
 	cmd := NewCommand(verbose, false, "git", "for-each-ref", "refs/heads/",
 		"--format", "%(refname:short)")
-
 	var output io.ReadCloser
 	if output, err = cmd.StdoutPipe(); err != nil {
 		err = CmdError(cmd, err)
@@ -207,7 +237,6 @@ func getTrackingBranch(branch string) (tracking string, err error) {
 
 	cmd := NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
 		"--symbolic-full-name", "--abbrev-ref", branch+"@{u}")
-
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
 		err = CmdErrOutput(cmd, err, output)
@@ -263,7 +292,6 @@ func deleteBranch(g *graph, branch string) (err error) {
 
 	cmd := NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
 		branch)
-
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
 		err = CmdErrOutput(cmd, err, output)
@@ -280,7 +308,6 @@ func deleteBranch(g *graph, branch string) (err error) {
 
 	cmd = NewCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
 		branch+"@{u}")
-
 	if output, err = cmd.CombinedOutput(); err != nil {
 		err = CmdErrOutput(cmd, err, output)
 		if verbose {
