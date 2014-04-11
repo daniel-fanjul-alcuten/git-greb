@@ -21,6 +21,7 @@ var (
 	interactive bool
 
 	remove bool
+	local  bool
 )
 
 func init() {
@@ -43,6 +44,8 @@ func init() {
 
 	flag.BoolVar(&remove, "d", false,
 		"it deletes fully merged branches after pulling (delete).")
+	flag.BoolVar(&local, "l", false,
+		"it only pulls local tracking branches (local).")
 }
 
 func main() {
@@ -254,6 +257,30 @@ func getTrackingBranch(branch string) (tracking string, err error) {
 }
 
 func pullBranch(branch string) (err error) {
+
+	if local {
+		cmd := NewCommand(verbose, false, "git", "config", "branch."+branch+".remote")
+		var output []byte
+		if output, err = cmd.CombinedOutput(); err != nil {
+			err = CmdErrOutput(cmd, err, output)
+			if verbose {
+				logPrintf("-> no config\n")
+			}
+			return
+		}
+
+		remote := strings.TrimSpace(string(output))
+		if remote == "." {
+			if verbose {
+				logPrintf("-> %s\n", remote)
+			}
+		} else {
+			if verbose {
+				logPrintf("-> %s (skipped)\n", remote)
+			}
+			return
+		}
+	}
 
 	cmd := NewCommand(!quiet, true, "git", "checkout", branch)
 	if !noop {
