@@ -16,6 +16,7 @@ var (
 	verbose bool
 	noop    bool
 
+	checkout    bool
 	rebase      bool
 	merge       bool
 	interactive bool
@@ -35,6 +36,8 @@ func init() {
 	flag.BoolVar(&noop, "n", false,
 		"it does not run the commands (noop).")
 
+	flag.BoolVar(&checkout, "c", false,
+		"it checks out instead of pulling (checkout).")
 	flag.BoolVar(&rebase, "r", false,
 		"it pulls with --rebase (rebase).")
 	flag.BoolVar(&merge, "m", false,
@@ -293,7 +296,9 @@ func pullBranch(branch string) (err error) {
 	}
 
 	args := []string{"pull"}
-	if rebase {
+	if checkout {
+		return
+	} else if rebase {
 		args = append(args, "--rebase")
 	} else if merge {
 		args = append(args, "--no-rebase")
