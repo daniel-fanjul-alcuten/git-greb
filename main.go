@@ -57,9 +57,6 @@ func init() {
 func main() {
 
 	flag.Parse()
-	if rebase && merge {
-		rebase, merge = false, false
-	}
 	branches := flag.Args()
 
 	getGitColors()
@@ -117,6 +114,10 @@ func getColors(color bool) (blue, reset string) {
 }
 
 func greb(branches []string) (err error) {
+
+	if err := assertFlags(); err != nil {
+		return err
+	}
 
 	branch, _ := getBranch()
 
@@ -399,6 +400,29 @@ func deleteBranch(g *graph, branch string) (err error) {
 		}
 	}
 
+	return
+}
+
+func assertFlags() (err error) {
+	flags := []struct {
+		name  string
+		value bool
+	}{
+		{"-s (skip)", skip},
+		{"-c (checkout)", checkout},
+		{"-r (rebase)", rebase},
+		{"-m (merge)", merge},
+		{"-i (interactive)", interactive},
+	}
+	var found []string
+	for _, f := range flags {
+		if f.value {
+			found = append(found, f.name)
+		}
+	}
+	if len(found) > 1 {
+		err = fmt.Errorf("incompatible flags: %s\n", strings.Join(found, ", "))
+	}
 	return
 }
 
