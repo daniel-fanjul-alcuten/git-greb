@@ -16,6 +16,7 @@ var (
 	verbose bool
 	noop    bool
 
+	skip        bool
 	checkout    bool
 	rebase      bool
 	merge       bool
@@ -36,6 +37,8 @@ func init() {
 	flag.BoolVar(&noop, "n", false,
 		"it does not run the commands (noop).")
 
+	flag.BoolVar(&skip, "s", false,
+		"it does not pull at all (skip).")
 	flag.BoolVar(&checkout, "c", false,
 		"it checks out instead of pulling (checkout).")
 	flag.BoolVar(&rebase, "r", false,
@@ -127,9 +130,11 @@ func greb(branches []string) (err error) {
 	}
 
 	sort := g.sort()
-	for _, branch := range sort {
-		if err = pullBranch(branch); err != nil {
-			return
+	if !skip {
+		for _, branch := range sort {
+			if err = pullBranch(branch); err != nil {
+				return
+			}
 		}
 	}
 
