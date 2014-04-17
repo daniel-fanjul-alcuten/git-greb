@@ -17,6 +17,7 @@ var (
 	noop    bool
 
 	graphtxt bool
+	graphdot bool
 
 	skip        bool
 	checkout    bool
@@ -41,6 +42,8 @@ func init() {
 
 	flag.BoolVar(&graphtxt, "t", false,
 		"it shows a forest of dependencies in text and exits (text graph).")
+	flag.BoolVar(&graphdot, "dot", false,
+		"it shows a forest of dependencies in dot format and exits (dot graph).")
 
 	flag.BoolVar(&skip, "s", false,
 		"it does not pull at all (skip).")
@@ -135,6 +138,9 @@ func greb(branches []string) (err error) {
 
 	if graphtxt {
 		fmt.Print(g.toText("", "  ", 0))
+		return
+	} else if graphdot {
+		fmt.Print(g.toDot())
 		return
 	}
 
@@ -417,6 +423,7 @@ func assertFlags() (err error) {
 		value bool
 	}{
 		{"-t (text graph)", graphtxt},
+		{"-dot (dot graph)", graphdot},
 		{"-s (skip)", skip},
 		{"-c (checkout)", checkout},
 		{"-r (rebase)", rebase},

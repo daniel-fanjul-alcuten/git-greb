@@ -94,3 +94,22 @@ func (g *graph) toText(branch, indent string, count int) (s string) {
 	}
 	return
 }
+
+func (g *graph) toDot() (s string) {
+	branches := make([]string, 0, len(g.direct))
+	for b := range g.direct {
+		branches = append(branches, b)
+	}
+	sort.Strings(branches)
+	s += "digraph {\n"
+	for _, b := range branches {
+		t := g.direct[b]
+		if t == "" {
+			s += fmt.Sprintf("  \"%v\";\n", b)
+		} else {
+			s += fmt.Sprintf("  \"%v\" -> \"%v\";\n", b, t)
+		}
+	}
+	s += "}\n"
+	return
+}

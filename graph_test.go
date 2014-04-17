@@ -450,3 +450,14 @@ func TestGraphToText(t *testing.T) {
 		t.Error(str)
 	}
 }
+
+func TestGraphToDot(t *testing.T) {
+	g := newGraph()
+	g.add("foo", "")
+	g.add("bar", "baz")
+	g.add("baz", "qux")
+	g.add("quux", "qux")
+	if str := g.toDot(); str != "digraph {\n  \"bar\" -> \"baz\";\n  \"baz\" -> \"qux\";\n  \"foo\";\n  \"quux\" -> \"qux\";\n}\n" {
+		t.Error(str)
+	}
+}
