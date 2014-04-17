@@ -421,7 +421,7 @@ func assertFlags() (err error) {
 		}
 	}
 	if len(found) > 1 {
-		err = fmt.Errorf("incompatible flags: %s\n", strings.Join(found, ", "))
+		err = fmt.Errorf("incompatible flags: %s", strings.Join(found, ", "))
 	}
 	return
 }
@@ -454,9 +454,13 @@ func logFatal(err error) {
 }
 
 func CmdError(cmd *exec.Cmd, err error) error {
-	return fmt.Errorf("%s: %s\n", CmdArgs(cmd), err)
+	return fmt.Errorf("%s: %s", CmdArgs(cmd), err)
 }
 
 func CmdErrOutput(cmd *exec.Cmd, err error, output []byte) error {
-	return fmt.Errorf("%s: %s\n%s\n", CmdArgs(cmd), err, string(output))
+	o := string(output)
+	if o != "" {
+		o = "\n" + o
+	}
+	return fmt.Errorf("%s: %s%s", CmdArgs(cmd), err, o)
 }
