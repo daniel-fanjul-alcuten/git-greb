@@ -385,3 +385,68 @@ func TestGraphAddTwoChainDeleteLast(t *testing.T) {
 		t.Error(b)
 	}
 }
+
+func TestGraphAddEmptyTracking(t *testing.T) {
+	g := newGraph()
+	g.add("foo", "")
+	if l := len(g.direct); l != 1 {
+		t.Error(l)
+	}
+	if b, ok := g.direct["foo"]; !ok {
+		t.Error(ok)
+	} else if b != "" {
+		t.Error(b)
+	}
+	if l := len(g.reverse); l != 1 {
+		t.Error(l)
+	}
+	if r, ok := g.reverse[""]; !ok {
+		t.Error(ok)
+	} else if l := len(r); l != 1 {
+		t.Error(l)
+	} else if _, ok := r["foo"]; !ok {
+		t.Error(ok)
+	}
+	s := g.sort()
+	if l := len(s); l != 0 {
+		t.Fatal(l)
+	}
+}
+
+func TestGraphAddEmptyTrackingDelete(t *testing.T) {
+	g := newGraph()
+	g.add("foo", "")
+	tr, br := g.remove("foo")
+	if tr != "" {
+		t.Error(tr)
+	}
+	if l := len(br); l != 0 {
+		t.Fatal(l)
+	}
+	if l := len(g.direct); l != 0 {
+		t.Error(l)
+	}
+	if l := len(g.reverse); l != 1 {
+		t.Error(l)
+	}
+	if r, ok := g.reverse[""]; !ok {
+		t.Error(ok)
+	} else if l := len(r); l != 0 {
+		t.Error(l)
+	}
+	s := g.sort()
+	if l := len(s); l != 0 {
+		t.Fatal(l)
+	}
+}
+
+func TestGraphToText(t *testing.T) {
+	g := newGraph()
+	g.add("foo", "")
+	g.add("bar", "baz")
+	g.add("baz", "qux")
+	g.add("quux", "qux")
+	if str := g.toText("", " ", 0); str != "foo\nqux\n baz\n  bar\n quux\n" {
+		t.Error(str)
+	}
+}

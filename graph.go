@@ -1,5 +1,11 @@
 package main
 
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
 type graph struct {
 	direct  map[string]string
 	reverse map[string]map[string]struct{}
@@ -27,7 +33,9 @@ func (g *graph) sort() (branches []string) {
 
 	direct := make(map[string]string, len(g.direct))
 	for k, v := range g.direct {
-		direct[k] = v
+		if v != "" {
+			direct[k] = v
+		}
 	}
 
 	for {
@@ -61,6 +69,28 @@ func (g *graph) remove(branch string) (tracking string, branches []string) {
 
 	for _, b := range branches {
 		g.add(b, tracking)
+	}
+	return
+}
+
+func (g *graph) toText(branch, indent string, count int) (s string) {
+	branches := make([]string, 0, len(g.direct))
+	for b := range g.reverse[branch] {
+		branches = append(branches, b)
+	}
+	if branch == "" {
+		for b := range g.reverse {
+			if b != "" {
+				if _, ok := g.direct[b]; !ok {
+					branches = append(branches, b)
+				}
+			}
+		}
+	}
+	sort.Strings(branches)
+	for _, b := range branches {
+		s += fmt.Sprintf("%v%v\n", strings.Repeat(indent, count), b)
+		s += g.toText(b, indent, count+1)
 	}
 	return
 }

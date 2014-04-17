@@ -16,6 +16,8 @@ var (
 	verbose bool
 	noop    bool
 
+	graphtxt bool
+
 	skip        bool
 	checkout    bool
 	rebase      bool
@@ -36,6 +38,9 @@ func init() {
 		"it explains intermediate steps (verbose).")
 	flag.BoolVar(&noop, "n", false,
 		"it does not run the commands (noop).")
+
+	flag.BoolVar(&graphtxt, "t", false,
+		"it shows a forest of dependencies in text and exits (text graph).")
 
 	flag.BoolVar(&skip, "s", false,
 		"it does not pull at all (skip).")
@@ -119,8 +124,6 @@ func greb(branches []string) (err error) {
 		return err
 	}
 
-	branch, _ := getBranch()
-
 	g := newGraph()
 	if len(branches) == 0 {
 		if err = fillGraphForAllBranches(g); err != nil {
@@ -129,6 +132,13 @@ func greb(branches []string) (err error) {
 	} else {
 		fillGraphForUserBranches(g, branches)
 	}
+
+	if graphtxt {
+		fmt.Print(g.toText("", "  ", 0))
+		return
+	}
+
+	branch, _ := getBranch()
 
 	sort := g.sort()
 	if !skip {
@@ -189,9 +199,7 @@ func fillGraphForAllBranches(g *graph) (err error) {
 
 	for _, branch := range branches {
 		tracking, _ := getTrackingBranch(branch)
-		if tracking != "" {
-			g.add(branch, tracking)
-		}
+		g.add(branch, tracking)
 	}
 	return
 }
@@ -206,8 +214,8 @@ func fillGraphForUserBranches(g *graph, branches []string) {
 		if _, ok := processed[branch]; !ok {
 			processed[branch] = struct{}{}
 			tracking, _ := getTrackingBranch(branch)
+			g.add(branch, tracking)
 			if tracking != "" {
-				g.add(branch, tracking)
 				pending = append(pending, tracking)
 			}
 		}
@@ -408,6 +416,7 @@ func assertFlags() (err error) {
 		name  string
 		value bool
 	}{
+		{"-t (text graph)", graphtxt},
 		{"-s (skip)", skip},
 		{"-c (checkout)", checkout},
 		{"-r (rebase)", rebase},
