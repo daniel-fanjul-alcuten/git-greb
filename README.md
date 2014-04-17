@@ -13,6 +13,26 @@ Use 'go get':
 go get github.com/daniel-fanjul-alcuten/git-greb
 </pre>
 
+Usage
+=====
+
+<pre>
+Usage of git-greb:
+  -c=false: it checks out instead of pulling (checkout).
+  -d=false: it deletes fully merged branches after pulling (delete).
+  -dot=false: it shows a forest of dependencies in dot format and exits (dot graph).
+  -i=false: it rebases with --interactive (interactive).
+  -l=false: it only pulls local tracking branches (local).
+  -m=false: it pulls with --no-rebase (merge).
+  -n=false: it does not run the commands (noop).
+  -q=false: it does not print the command lines (quiet).
+  -r=false: it pulls with --rebase (rebase).
+  -s=false: it does not pull at all (skip).
+  -t=false: it shows a forest of dependencies in text and exits (text graph).
+  -v=false: it explains intermediate steps (verbose).
+  -x=false: it shows a forest of dependencies in xlib and exits (xlib graph).
+</pre>
+
 Example
 =======
 
