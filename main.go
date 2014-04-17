@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -16,8 +17,9 @@ var (
 	verbose bool
 	noop    bool
 
-	graphtxt bool
-	graphdot bool
+	graphtxt  bool
+	graphdot  bool
+	graphxlib bool
 
 	skip        bool
 	checkout    bool
@@ -44,6 +46,8 @@ func init() {
 		"it shows a forest of dependencies in text and exits (text graph).")
 	flag.BoolVar(&graphdot, "dot", false,
 		"it shows a forest of dependencies in dot format and exits (dot graph).")
+	flag.BoolVar(&graphxlib, "x", false,
+		"it shows a forest of dependencies in xlib and exits (xlib graph).")
 
 	flag.BoolVar(&skip, "s", false,
 		"it does not pull at all (skip).")
@@ -141,6 +145,16 @@ func greb(branches []string) (err error) {
 		return
 	} else if graphdot {
 		fmt.Print(g.toDot())
+		return
+	} else if graphxlib {
+		cmd := NewCommand(verbose, false, "dot", "-Txlib")
+		cmd.Stdin = bytes.NewBufferString(g.toDot())
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err = cmd.Run(); err != nil {
+			err = CmdError(cmd, err)
+			return
+		}
 		return
 	}
 
@@ -424,6 +438,7 @@ func assertFlags() (err error) {
 	}{
 		{"-t (text graph)", graphtxt},
 		{"-dot (dot graph)", graphdot},
+		{"-x (xlib graph)", graphxlib},
 		{"-s (skip)", skip},
 		{"-c (checkout)", checkout},
 		{"-r (rebase)", rebase},
