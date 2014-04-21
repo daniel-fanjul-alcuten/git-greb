@@ -1,463 +1,267 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"strings"
 	"testing"
 )
 
-func TestGraphAddOne(t *testing.T) {
+func TestGraphSort1(t *testing.T) {
 	g := newGraph()
-	g.add("foo", "bar")
-	if l := len(g.direct); l != 1 {
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	g.edge(a, b, "ab")
+	nodes := g.sort()
+	if l := len(nodes); l != 1 {
 		t.Error(l)
-	}
-	if b, ok := g.direct["foo"]; !ok {
-		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 1 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "foo" {
-		t.Error(b)
+	} else if n := nodes[0]; n != a {
+		t.Error(n)
 	}
 }
 
-func TestGraphAddTwoIndependent(t *testing.T) {
+func TestGraphSort2(t *testing.T) {
 	g := newGraph()
-	g.add("foo", "bar")
-	g.add("baz", "qux")
-	if l := len(g.direct); l != 2 {
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	c, _ := g.node(ref{"c", "."})
+	g.edge(a, b, "ab")
+	g.edge(b, c, "bc")
+	nodes := g.sort()
+	if l := len(nodes); l != 2 {
 		t.Error(l)
-	}
-	if b, ok := g.direct["foo"]; !ok {
-		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
-	}
-	if b, ok := g.direct["baz"]; !ok {
-		t.Error(ok)
-	} else if b != "qux" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 2 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
-		t.Error(ok)
-	}
-	if r, ok := g.reverse["qux"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["baz"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 2 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "foo" {
-		t.Error(b)
-	}
-	if b := s[1]; b != "baz" {
-		t.Error(b)
+	} else if n := nodes[0]; n != b {
+		t.Error(n)
+	} else if n := nodes[1]; n != a {
+		t.Error(n)
 	}
 }
 
-func TestGraphAddTwoDependent(t *testing.T) {
+func TestGraphRemove(t *testing.T) {
 	g := newGraph()
-	g.add("foo", "bar")
-	g.add("baz", "bar")
-	if l := len(g.direct); l != 2 {
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	c, _ := g.node(ref{"c", "."})
+	d, _ := g.node(ref{"d", "origin"})
+	e, _ := g.node(ref{"e", "origin"})
+	for _, n := range []*node{a, b, c, d} {
+		n.branch = strings.Repeat(n.name, 2)
+	}
+	g.edge(a, c, "ac")
+	g.edge(b, c, "bc")
+	g.edge(c, d, "cd")
+	g.edge(c, e, "cd")
+	updates := g.remove(c)
+	if l := len(updates); l != 8 {
+		t.Error(l)
+	} else {
+		if u := updates[0]; u != (rmUpstream{"aa", "ac"}) {
+			t.Error(u)
+		}
+		if u := updates[1]; u != (setRemote{"aa", "origin"}) {
+			t.Error(u)
+		}
+		if u := updates[2]; u != (addUpstream{"aa", "d"}) {
+			t.Error(u)
+		}
+		if u := updates[3]; u != (addUpstream{"aa", "e"}) {
+			t.Error(u)
+		}
+		if u := updates[4]; u != (rmUpstream{"bb", "bc"}) {
+			t.Error(u)
+		}
+		if u := updates[5]; u != (setRemote{"bb", "origin"}) {
+			t.Error(u)
+		}
+		if u := updates[6]; u != (addUpstream{"bb", "d"}) {
+			t.Error(u)
+		}
+		if u := updates[7]; u != (addUpstream{"bb", "e"}) {
+			t.Error(u)
+		}
+	}
+	if l := len(g.nodes); l != 4 {
 		t.Error(l)
 	}
-	if b, ok := g.direct["foo"]; !ok {
+	if _, ok := g.nodes[c.ref]; ok {
 		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
 	}
-	if b, ok := g.direct["baz"]; !ok {
-		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 1 {
+	if l := len(a.upstreams); l != 2 {
 		t.Error(l)
 	}
-	if r, ok := g.reverse["bar"]; !ok {
+	if _, ok := a.upstreams[d]; !ok {
 		t.Error(ok)
-	} else if l := len(r); l != 2 {
+	}
+	if _, ok := a.upstreams[e]; !ok {
+		t.Error(ok)
+	}
+	if l := len(a.downstreams); l != 0 {
 		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
+	}
+	if l := len(b.upstreams); l != 2 {
+		t.Error(l)
+	}
+	if _, ok := b.upstreams[d]; !ok {
 		t.Error(ok)
-	} else if _, ok := r["baz"]; !ok {
+	}
+	if _, ok := b.upstreams[e]; !ok {
 		t.Error(ok)
 	}
-	s := g.sort()
-	if l := len(s); l != 2 {
-		t.Fatal(l)
+	if l := len(b.downstreams); l != 0 {
+		t.Error(l)
 	}
-	if b := s[0]; b != "foo" {
-		t.Error(b)
+	if l := len(c.upstreams); l != 2 {
+		t.Error(l)
 	}
-	if b := s[1]; b != "baz" {
-		t.Error(b)
+	if _, ok := c.upstreams[d]; !ok {
+		t.Error(ok)
+	}
+	if _, ok := c.upstreams[e]; !ok {
+		t.Error(ok)
+	}
+	if l := len(c.downstreams); l != 2 {
+		t.Error(l)
+	}
+	if _, ok := c.downstreams[a]; !ok {
+		t.Error(ok)
+	}
+	if _, ok := c.downstreams[b]; !ok {
+		t.Error(ok)
+	}
+	if l := len(d.upstreams); l != 0 {
+		t.Error(l)
+	}
+	if l := len(d.downstreams); l != 2 {
+		t.Error(l)
+	}
+	if _, ok := d.downstreams[a]; !ok {
+		t.Error(ok)
+	}
+	if _, ok := d.downstreams[b]; !ok {
+		t.Error(ok)
+	}
+	if l := len(e.upstreams); l != 0 {
+		t.Error(l)
+	}
+	if l := len(e.downstreams); l != 2 {
+		t.Error(l)
+	}
+	if _, ok := e.downstreams[a]; !ok {
+		t.Error(ok)
+	}
+	if _, ok := e.downstreams[b]; !ok {
+		t.Error(ok)
 	}
 }
 
-func TestGraphAddTwoChain(t *testing.T) {
+func TestGraphText(t *testing.T) {
 	g := newGraph()
-	g.add("foo", "bar")
-	g.add("bar", "baz")
-	if l := len(g.direct); l != 2 {
-		t.Error(l)
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	c, _ := g.node(ref{"c", "."})
+	d, _ := g.node(ref{"d", "origin"})
+	for _, n := range []*node{a, b, c, d} {
+		n.branch = strings.Repeat(n.name, 2)
 	}
-	if b, ok := g.direct["foo"]; !ok {
-		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
+	g.edge(a, b, "ab")
+	g.edge(b, c, "bc")
+	g.edge(b, d, "bd")
+	s := bufio.NewScanner(bytes.NewBufferString(g.text(nil, "", "  ")))
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if b, ok := g.direct["bar"]; !ok {
-		t.Error(ok)
-	} else if b != "baz" {
-		t.Error(b)
+	if e := s.Text(); e != "cc" {
+		t.Error(e)
 	}
-	if l := len(g.reverse); l != 2 {
-		t.Error(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
-		t.Error(ok)
+	if e := s.Text(); e != "  bb" {
+		t.Error(e)
 	}
-	if r, ok := g.reverse["baz"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["bar"]; !ok {
-		t.Error(ok)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	s := g.sort()
-	if l := len(s); l != 2 {
-		t.Fatal(l)
+	if e := s.Text(); e != "    aa" {
+		t.Error(e)
 	}
-	if b := s[0]; b != "bar" {
-		t.Error(b)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if b := s[1]; b != "foo" {
-		t.Error(b)
+	if e := s.Text(); e != "dd" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  bb" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "    aa" {
+		t.Error(e)
+	}
+	if v := s.Scan(); v {
+		t.Fatal(v)
 	}
 }
 
-func TestGraphDeleteOne(t *testing.T) {
+func TestGraphDot(t *testing.T) {
 	g := newGraph()
-	g.add("foo", "bar")
-	tr, br := g.remove("foo")
-	if tr != "bar" {
-		t.Error(tr)
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	c, _ := g.node(ref{"c", "origin"})
+	for _, n := range []*node{a, b, c} {
+		n.branch = strings.Repeat(n.name, 2)
 	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
+	g.edge(a, b, "ab")
+	g.edge(a, c, "ac")
+	s := bufio.NewScanner(bytes.NewBufferString(g.dot()))
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if l := len(g.direct); l != 0 {
-		t.Error(l)
+	if e := s.Text(); e != "digraph {" {
+		t.Error(e)
 	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 0 {
-		t.Error(l)
+	if e := s.Text(); e != "  \"aa\";" {
+		t.Error(e)
 	}
-	s := g.sort()
-	if l := len(s); l != 0 {
-		t.Fatal(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-}
-
-func TestGraphAddOneDelete(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "bar")
-	tr, br := g.remove("foo")
-	if tr != "bar" {
-		t.Error(tr)
+	if e := s.Text(); e != "  \"aa\" -> \"bb\";" {
+		t.Error(e)
 	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if l := len(g.direct); l != 0 {
-		t.Error(l)
+	if e := s.Text(); e != "  \"aa\" -> \"cc\" [style=dotted];" {
+		t.Error(e)
 	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 0 {
-		t.Error(l)
+	if e := s.Text(); e != "  \"bb\";" {
+		t.Error(e)
 	}
-	s := g.sort()
-	if l := len(s); l != 0 {
-		t.Fatal(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-}
-
-func TestGraphAddTwoIndependentDelete(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "bar")
-	g.add("baz", "qux")
-	tr, br := g.remove("foo")
-	if tr != "bar" {
-		t.Error(tr)
+	if e := s.Text(); e != "  \"cc\";" {
+		t.Error(e)
 	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
+	if v := s.Scan(); !v {
+		t.Fatal(v)
 	}
-	if l := len(g.direct); l != 1 {
-		t.Error(l)
+	if e := s.Text(); e != "}" {
+		t.Error(e)
 	}
-	if b, ok := g.direct["baz"]; !ok {
-		t.Error(ok)
-	} else if b != "qux" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 2 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 0 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["qux"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["baz"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 1 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "baz" {
-		t.Error(b)
-	}
-}
-
-func TestGraphAddTwoDependentDelete(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "bar")
-	g.add("baz", "bar")
-	tr, br := g.remove("foo")
-	if tr != "bar" {
-		t.Error(tr)
-	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
-	}
-	if l := len(g.direct); l != 1 {
-		t.Error(l)
-	}
-	if b, ok := g.direct["baz"]; !ok {
-		t.Error(ok)
-	} else if b != "bar" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["baz"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 1 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "baz" {
-		t.Error(b)
-	}
-}
-
-func TestGraphAddTwoChainDeleteFirst(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "bar")
-	g.add("bar", "baz")
-	tr, br := g.remove("foo")
-	if tr != "bar" {
-		t.Error(tr)
-	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
-	}
-	if l := len(g.direct); l != 1 {
-		t.Error(l)
-	}
-	if b, ok := g.direct["bar"]; !ok {
-		t.Error(ok)
-	} else if b != "baz" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 2 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["bar"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 0 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["baz"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["bar"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 1 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "bar" {
-		t.Error(b)
-	}
-}
-
-func TestGraphAddTwoChainDeleteLast(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "bar")
-	g.add("bar", "baz")
-	tr, br := g.remove("bar")
-	if tr != "baz" {
-		t.Error(tr)
-	}
-	if l := len(br); l != 1 {
-		t.Fatal(l)
-	}
-	if b := br[0]; b != "foo" {
-		t.Error(b)
-	}
-	if l := len(g.direct); l != 1 {
-		t.Error(l)
-	}
-	if b, ok := g.direct["foo"]; !ok {
-		t.Error(ok)
-	} else if b != "baz" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse["baz"]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 1 {
-		t.Fatal(l)
-	}
-	if b := s[0]; b != "foo" {
-		t.Error(b)
-	}
-}
-
-func TestGraphAddEmptyTracking(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "")
-	if l := len(g.direct); l != 1 {
-		t.Error(l)
-	}
-	if b, ok := g.direct["foo"]; !ok {
-		t.Error(ok)
-	} else if b != "" {
-		t.Error(b)
-	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse[""]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 1 {
-		t.Error(l)
-	} else if _, ok := r["foo"]; !ok {
-		t.Error(ok)
-	}
-	s := g.sort()
-	if l := len(s); l != 0 {
-		t.Fatal(l)
-	}
-}
-
-func TestGraphAddEmptyTrackingDelete(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "")
-	tr, br := g.remove("foo")
-	if tr != "" {
-		t.Error(tr)
-	}
-	if l := len(br); l != 0 {
-		t.Fatal(l)
-	}
-	if l := len(g.direct); l != 0 {
-		t.Error(l)
-	}
-	if l := len(g.reverse); l != 1 {
-		t.Error(l)
-	}
-	if r, ok := g.reverse[""]; !ok {
-		t.Error(ok)
-	} else if l := len(r); l != 0 {
-		t.Error(l)
-	}
-	s := g.sort()
-	if l := len(s); l != 0 {
-		t.Fatal(l)
-	}
-}
-
-func TestGraphToText(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "")
-	g.add("bar", "baz")
-	g.add("baz", "qux")
-	g.add("quux", "qux")
-	if str := g.toText("", " ", 0); str != "foo\nqux\n baz\n  bar\n quux\n" {
-		t.Error(str)
-	}
-}
-
-func TestGraphToDot(t *testing.T) {
-	g := newGraph()
-	g.add("foo", "")
-	g.add("bar", "baz")
-	g.add("baz", "qux")
-	g.add("quux", "qux")
-	if str := g.toDot(); str != "digraph {\n  \"bar\" -> \"baz\";\n  \"baz\" -> \"qux\";\n  \"foo\";\n  \"quux\" -> \"qux\";\n}\n" {
-		t.Error(str)
+	if v := s.Scan(); v {
+		t.Fatal(v)
 	}
 }

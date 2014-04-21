@@ -3,111 +3,200 @@ package main
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
+// ref identifier
+type ref struct {
+	// full name, i.e. refs/heads/master
+	name string
+	// i.e. origin
+	remote string
+}
+
+type node struct {
+	ref
+	// abbreviated name, i.e. master, origin/master
+	branch string
+	// nodes that this node depends on, the original value of branch.<name>.merge
+	upstreams map[*node]string
+	// nodes that depend on this node
+	downstreams map[*node]struct{}
+}
+
 type graph struct {
-	direct  map[string]string
-	reverse map[string]map[string]struct{}
+	nodes map[ref]*node
 }
 
 func newGraph() *graph {
-	direct := make(map[string]string)
-	reverse := make(map[string]map[string]struct{})
-	return &graph{direct, reverse}
+	nodes := make(map[ref]*node)
+	return &graph{nodes}
 }
 
-func (g *graph) add(branch, tracking string) {
-
-	g.direct[branch] = tracking
-	if m, ok := g.reverse[tracking]; ok {
-		m[branch] = struct{}{}
-	} else {
-		m = make(map[string]struct{})
-		g.reverse[tracking] = m
-		m[branch] = struct{}{}
+func (g *graph) node(r ref) (n *node, ok bool) {
+	if n, ok = g.nodes[r]; !ok {
+		n = &node{r, "", nil, nil}
+		g.nodes[r] = n
 	}
+	return
 }
 
-func (g *graph) sort() (branches []string) {
+func (g *graph) edge(from, to *node, reason string) {
+	if from.upstreams == nil {
+		from.upstreams = make(map[*node]string)
+	}
+	from.upstreams[to] = reason
+	if to.downstreams == nil {
+		to.downstreams = make(map[*node]struct{})
+	}
+	to.downstreams[from] = struct{}{}
+}
 
-	direct := make(map[string]string, len(g.direct))
-	for k, v := range g.direct {
-		if v != "" {
-			direct[k] = v
+// nodes n that len(n.upstreams) > 0, downstreams first
+func (g *graph) sort() (nodes []*node) {
+	pending := make(map[ref]*node, len(g.nodes))
+	for r, n := range g.nodes {
+		if len(n.upstreams) > 0 {
+			pending[r] = n
 		}
 	}
-
 	for {
-		l := len(direct)
-		for branch, tracking := range direct {
-			if _, ok := direct[tracking]; ok {
-				// the branch depends on another local branch
+		l := len(pending)
+		for _, n := range pending {
+			h := false
+			for u := range n.upstreams {
+				if _, ok := pending[u.ref]; ok {
+					h = true
+					break
+				}
+			}
+			if h {
 				continue
 			}
-			branches = append(branches, branch)
-			delete(direct, branch)
+			nodes = append(nodes, n)
+			delete(pending, n.ref)
 		}
-		if len(direct) == l {
+		if len(pending) == l {
 			break
 		}
 	}
-
 	return
 }
 
-func (g *graph) remove(branch string) (tracking string, branches []string) {
-
-	tracking = g.direct[branch]
-	for b := range g.reverse[branch] {
-		branches = append(branches, b)
-	}
-
-	delete(g.direct, branch)
-	delete(g.reverse, branch)
-	delete(g.reverse[tracking], branch)
-
-	for _, b := range branches {
-		g.add(b, tracking)
-	}
-	return
+// for adding branch.<downstream>.merge = <upstream>
+type addUpstream struct {
+	downstream string
+	upstream   string
 }
 
-func (g *graph) toText(branch, indent string, count int) (s string) {
-	branches := make([]string, 0, len(g.direct))
-	for b := range g.reverse[branch] {
-		branches = append(branches, b)
-	}
-	if branch == "" {
-		for b := range g.reverse {
-			if b != "" {
-				if _, ok := g.direct[b]; !ok {
-					branches = append(branches, b)
+// for unsetting branch.<downstream>.merge = <upstream>
+type rmUpstream struct {
+	downstream string
+	upstream   string
+}
+
+// for setting branch.<downstream>.remote = <remote>
+type setRemote struct {
+	downstream string
+	remote     string
+}
+
+// it returns instances of addUpstream, rmUpstream, setRemote
+func (g *graph) remove(n *node) (updates []interface{}) {
+	for d := range n.downstreams {
+		updates = append(updates, rmUpstream{d.branch, d.upstreams[n]})
+		// all upstreams share same remote
+		var remote string
+		for u := range d.upstreams {
+			if u != n {
+				remote = u.remote
+				break
+			}
+		}
+		for u := range n.upstreams {
+			if _, ok := d.upstreams[u]; !ok {
+				if remote == "" {
+					remote = u.remote
+					g.edge(d, u, u.name)
+					updates = append(updates, setRemote{d.branch, remote}, addUpstream{d.branch, u.name})
+				} else if remote == u.remote {
+					g.edge(d, u, u.name)
+					updates = append(updates, addUpstream{d.branch, u.name})
+				} else {
+					// there is only one branch.<downstream>.remote for all upstreams
 				}
 			}
 		}
 	}
-	sort.Strings(branches)
-	for _, b := range branches {
-		s += fmt.Sprintf("%v%v\n", strings.Repeat(indent, count), b)
-		s += g.toText(b, indent, count+1)
+	delete(g.nodes, n.ref)
+	for d := range n.downstreams {
+		delete(d.upstreams, n)
+	}
+	for u := range n.upstreams {
+		delete(u.downstreams, n)
 	}
 	return
 }
 
-func (g *graph) toDot() (s string) {
-	branches := make([]string, 0, len(g.direct))
-	for b := range g.direct {
-		branches = append(branches, b)
+type nodesort []*node
+
+func (ns nodesort) Len() int {
+	return len(ns)
+}
+
+func (ns nodesort) Less(i, j int) bool {
+	return ns[i].branch < ns[j].branch
+}
+
+func (ns *nodesort) Swap(i, j int) {
+	(*ns)[i], (*ns)[j] = (*ns)[j], (*ns)[i]
+}
+
+func (g *graph) text(n *node, indent, i string) (s string) {
+	var nodes nodesort
+	if n == nil {
+		for _, n := range g.nodes {
+			if len(n.upstreams) == 0 {
+				nodes = append(nodes, n)
+			}
+		}
+	} else {
+		nodes = append(nodes, n)
 	}
-	sort.Strings(branches)
+	sort.Sort(&nodes)
+	for _, n := range nodes {
+		s += fmt.Sprintf("%v%v\n", indent, n.branch)
+		var downstreams nodesort
+		for d := range n.downstreams {
+			downstreams = append(downstreams, d)
+		}
+		sort.Sort(&downstreams)
+		for _, d := range downstreams {
+			s += g.text(d, indent+i, i)
+		}
+	}
+	return
+}
+
+func (g *graph) dot() (s string) {
+	var nodes nodesort
+	for _, n := range g.nodes {
+		nodes = append(nodes, n)
+	}
+	sort.Sort(&nodes)
 	s += "digraph {\n"
-	for _, b := range branches {
-		t := g.direct[b]
-		if t == "" {
-			s += fmt.Sprintf("  \"%v\";\n", b)
-		} else {
-			s += fmt.Sprintf("  \"%v\" -> \"%v\";\n", b, t)
+	for _, n := range nodes {
+		s += fmt.Sprintf("  \"%v\";\n", n.branch)
+		var upstreams nodesort
+		for u := range n.upstreams {
+			upstreams = append(upstreams, u)
+		}
+		sort.Sort(&upstreams)
+		for _, u := range upstreams {
+			var style string
+			if u.remote != "." {
+				style = " [style=dotted]"
+			}
+			s += fmt.Sprintf("  \"%v\" -> \"%v\"%v;\n", n.branch, u.branch, style)
 		}
 	}
 	s += "}\n"
