@@ -10,53 +10,54 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 )
 
 var (
-	quiet       bool
-	verbose     bool
-	noop        bool
 	graphtxt    bool
 	graphdot    bool
 	graphxlib   bool
-	skip        bool
-	checkout    bool
 	rebase      bool
 	merge       bool
 	interactive bool
+	checkout    bool
+	skip        bool
 	remove      bool
 	local       bool
+	quiet       bool
+	verbose     bool
+	noop        bool
 )
 
 func init() {
 	log.SetFlags(0)
+	flag.BoolVar(&graphtxt, "t", false,
+		"it uses a custom text format (text graph).")
+	flag.BoolVar(&graphdot, "dot", false,
+		"it uses the dot format (dot graph).")
+	flag.BoolVar(&graphxlib, "x", false,
+		"it draws the dot format in an xlib window (xlib graph).")
+	flag.BoolVar(&rebase, "r", false,
+		"it pulls every branch with --rebase (rebase).")
+	flag.BoolVar(&merge, "m", false,
+		"it pulls every branch with --no-rebase (merge).")
+	flag.BoolVar(&interactive, "i", false,
+		"it rebases with --interactive (interactive).")
+	flag.BoolVar(&checkout, "c", false,
+		"it checks out instead of pulling (checkout).")
+	flag.BoolVar(&skip, "s", false,
+		"it does not pull at all (skip).")
+	flag.BoolVar(&remove, "d", false,
+		"it deletes fully merged branches after pulling (delete).")
+	flag.BoolVar(&local, "l", false,
+		"it only pulls local tracking branches (local).")
 	flag.BoolVar(&quiet, "q", false,
 		"it does not print the command lines (quiet).")
 	flag.BoolVar(&verbose, "v", false,
 		"it explains intermediate steps (verbose).")
 	flag.BoolVar(&noop, "n", false,
-		"it does not run the commands (noop).")
-	flag.BoolVar(&graphtxt, "t", false,
-		"it shows the graph of dependencies in text and exits (text graph).")
-	flag.BoolVar(&graphdot, "dot", false,
-		"it shows the graph of dependencies in dot format and exits (dot graph).")
-	flag.BoolVar(&graphxlib, "x", false,
-		"it shows the graph of dependencies in xlib and exits (xlib graph).")
-	flag.BoolVar(&skip, "s", false,
-		"it does not pull at all (skip).")
-	flag.BoolVar(&checkout, "c", false,
-		"it checks out instead of pulling (checkout).")
-	flag.BoolVar(&rebase, "r", false,
-		"it pulls with --rebase (rebase).")
-	flag.BoolVar(&merge, "m", false,
-		"it pulls with --no-rebase (merge).")
-	flag.BoolVar(&interactive, "i", false,
-		"it rebases with --interactive (interactive).")
-	flag.BoolVar(&remove, "d", false,
-		"it deletes fully merged branches after pulling (delete).")
-	flag.BoolVar(&local, "l", false,
-		"it only pulls local tracking branches (local).")
+		"it does not run any command (noop).")
 }
 
 func assertFlags() (err error) {
@@ -67,11 +68,11 @@ func assertFlags() (err error) {
 		{"-t (text graph)", graphtxt},
 		{"-dot (dot graph)", graphdot},
 		{"-x (xlib graph)", graphxlib},
-		{"-s (skip)", skip},
-		{"-c (checkout)", checkout},
 		{"-r (rebase)", rebase},
 		{"-m (merge)", merge},
 		{"-i (interactive)", interactive},
+		{"-c (checkout)", checkout},
+		{"-s (skip)", skip},
 	}
 	var found []string
 	for _, f := range flags {
@@ -131,7 +132,94 @@ func getColors(color bool) (blue, reset string) {
 	return
 }
 
+const usage = `Usage of %[1]s [<options>] [<branches>]:
+
+%[2]s builds a graph of dependencies of the local branches. They usually depend
+on remote branches but they also can track other local branches. The graph is
+defined using the usual git config options branch.<name>.remote and
+branch.<name>.merge.
+
+%[2]s supports branches that track multiple branches at the same time. In git
+there is only one value of the remote option for one or more merge options;
+%[2]s takes this into account.
+
+The arguments are processed with git rev-parse to discover the abbreviated name
+of the branches. If there are no arguments, all local branches are retrieved
+instead. Then %[2]s queries recursively the remote and merge tracking options
+to discover the dependencies and build the graph.
+
+The first set of options makes %[2]s dump the graph in the standard output in
+different formats and then exit:
+
+%[3]s
+%[4]s
+%[5]s
+
+The second set of options makes %[2]s traverse the graph visiting the branches
+in order from the downstreams to the upstreams and running some variant of 'git
+pull' on them. If no option is provided 'git pull' merges or rebases depending
+on the usual git options.
+
+%[6]s
+%[7]s
+%[8]s
+%[9]s
+%[10]s
+
+The option %[11]s makes %[2]s delete branches that don't create new history
+over their tracking branches. None is deleted until all of them have been
+successfuly updated in the previous step. A branch is deleted if it points to
+the same commit as at least one of its upstream branches. They are deleted in
+the opposite order.
+
+The tracking configuration is updated accordingly: if a set of branches A
+depends on a branch B, B depends on a set of branches C, and B is eligible for
+deletion: all branches A stop tracking B and start tracking the branches C.
+
+%[12]s
+
+The option %[13]s makes %[2]s pull only those branches that don't have any
+upstream branch in a different repository from the local one.
+
+%[14]s
+
+%[2]s checks out every branch before pulling it and stops when a command
+doesn't finish with exit status 0. If this happens, the current branch may not
+be the same than the original one. If all of them finish successfully %[2]s
+tries to return to the original branch, but it may have been deleted. As a
+consequence, the user should expect that the current branch may be different or
+even that the head may become detached. %[2]s tries to minimize the number of
+check outs.
+
+Other options:
+
+%[15]s
+%[16]s
+%[17]s
+
+%[2]s checks some git options in the usual git configuration files:
+
+  color.greb:        It enables or disables color in %[2]s. See color.ui for
+                     more information.
+  color.greb.branch: The color for the git commands that the user needs to know
+                     that have been run. Blue by default.
+`
+
 func main() {
+	flag.Usage = func() {
+		f := func(name string) string {
+			f := flag.Lookup(name)
+			format := "  %4s=%s: %s"
+			return fmt.Sprintf(format, "-"+name, f.DefValue, f.Usage)
+		}
+		fmt.Fprintf(os.Stderr, usage, os.Args[0], filepath.Base(os.Args[0]),
+			f("t"), f("dot"), f("x"),
+			f("r"), f("m"), f("i"), f("c"), f("s"),
+			"-d", f("d"),
+			"-l", f("l"),
+			f("q"), f("v"), f("n"),
+		)
+	}
 	flag.Parse()
 	if err := assertFlags(); err != nil {
 		logFatal(err)

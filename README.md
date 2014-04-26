@@ -16,22 +16,77 @@ go get github.com/daniel-fanjul-alcuten/git-greb
 Usage
 =====
 
-<pre>
-Usage of git-greb:
-  -c=false: it checks out instead of pulling (checkout).
-  -d=false: it deletes fully merged branches after pulling (delete).
-  -dot=false: it shows the graph of dependencies in dot format and exits (dot graph).
-  -i=false: it rebases with --interactive (interactive).
-  -l=false: it only pulls local tracking branches (local).
-  -m=false: it pulls with --no-rebase (merge).
-  -n=false: it does not run the commands (noop).
-  -q=false: it does not print the command lines (quiet).
-  -r=false: it pulls with --rebase (rebase).
-  -s=false: it does not pull at all (skip).
-  -t=false: it shows the graph of dependencies in text and exits (text graph).
-  -v=false: it explains intermediate steps (verbose).
-  -x=false: it shows the graph of dependencies in xlib and exits (xlib graph).
-</pre>
+    Usage of git-greb [<options>] [<branches>]:
+    
+    git-greb builds a graph of dependencies of the local branches. They usually depend
+    on remote branches but they also can track other local branches. The graph is
+    defined using the usual git config options branch.<name>.remote and
+    branch.<name>.merge.
+    
+    git-greb supports branches that track multiple branches at the same time. In git
+    there is only one value of the remote option for one or more merge options;
+    git-greb takes this into account.
+    
+    The arguments are processed with git rev-parse to discover the abbreviated name
+    of the branches. If there are no arguments, all local branches are retrieved
+    instead. Then git-greb queries recursively the remote and merge tracking options
+    to discover the dependencies and build the graph.
+    
+    The first set of options makes git-greb dump the graph in the standard output in
+    different formats and then exit:
+    
+        -t=false: it uses a custom text format (text graph).
+      -dot=false: it uses the dot format (dot graph).
+        -x=false: it draws the dot format in an xlib window (xlib graph).
+    
+    The second set of options makes git-greb traverse the graph visiting the branches
+    in order from the downstreams to the upstreams and running some variant of 'git
+    pull' on them. If no option is provided 'git pull' merges or rebases depending
+    on the usual git options.
+    
+        -r=false: it pulls every branch with --rebase (rebase).
+        -m=false: it pulls every branch with --no-rebase (merge).
+        -i=false: it rebases with --interactive (interactive).
+        -c=false: it checks out instead of pulling (checkout).
+        -s=false: it does not pull at all (skip).
+    
+    The option -d makes git-greb delete branches that don't create new history
+    over their tracking branches. None is deleted until all of them have been
+    successfuly updated in the previous step. A branch is deleted if it points to
+    the same commit as at least one of its upstream branches. They are deleted in
+    the opposite order.
+    
+    The tracking configuration is updated accordingly: if a set of branches A
+    depends on a branch B, B depends on a set of branches C, and B is eligible for
+    deletion: all branches A stop tracking B and start tracking the branches C.
+    
+        -d=false: it deletes fully merged branches after pulling (delete).
+    
+    The option -l makes git-greb pull only those branches that don't have any
+    upstream branch in a different repository from the local one.
+    
+        -l=false: it only pulls local tracking branches (local).
+    
+    git-greb checks out every branch before pulling it and stops when a command
+    doesn't finish with exit status 0. If this happens, the current branch may not
+    be the same than the original one. If all of them finish successfully git-greb
+    tries to return to the original branch, but it may have been deleted. As a
+    consequence, the user should expect that the current branch may be different or
+    even that the head may become detached. git-greb tries to minimize the number of
+    check outs.
+    
+    Other options:
+    
+        -q=false: it does not print the command lines (quiet).
+        -v=false: it explains intermediate steps (verbose).
+        -n=false: it does not run any command (noop).
+    
+    git-greb checks some git options in the usual git configuration files:
+    
+      color.greb:        It enables or disables color in git-greb. See color.ui for
+                         more information.
+      color.greb.branch: The color for the git commands that the user needs to know
+                         that have been run. Blue by default.
 
 Example
 =======

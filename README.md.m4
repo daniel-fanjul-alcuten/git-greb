@@ -16,9 +16,7 @@ go get github.com/daniel-fanjul-alcuten/git-greb
 Usage
 =====
 
-<pre>
-esyscmd(go install && ${GOPATH%%:*}/bin/git-greb -h 2>&1 | sed 's/Usage of .*:/Usage of git-greb:/')dnl
-</pre>
+esyscmd(go install && ${GOPATH%%:*}/bin/git-greb -h 2>&1 | sed -e 's/Usage of .*git-greb/Usage of git-greb/' -e 's/^/    /')dnl
 
 Example
 =======
