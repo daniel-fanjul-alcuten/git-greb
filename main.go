@@ -163,7 +163,8 @@ func greb(branches []string) (err error) {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err = cmd.Run(); err != nil {
-				return cmdError(cmd, err)
+				err = cmdError(cmd, err)
+				return
 			}
 		}
 		return
@@ -230,7 +231,11 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 			processed[branch] = struct{}{}
 			n, _ := g.node(ref{"refs/heads/" + branch, "."})
 			n.branch = branch
-			remote, refnames := getTrackingInfo(branch)
+			var remote string
+			var refnames []string
+			if remote, refnames, err = getTrackingInfo(branch); err != nil {
+				return
+			}
 			if remote == "." {
 				for _, r := range refnames {
 					if branch, err = getAbbrevSymbolicFullName(r); err != nil {
@@ -257,11 +262,14 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 	return
 }
 
-func getTrackingInfo(branch string) (remote string, refnames []string) {
+func getTrackingInfo(branch string) (remote string, refnames []string, err error) {
 	cmd := newCommand(verbose, false, "git", "config", "branch."+branch+".remote")
 	var output []byte
-	var err error
 	if output, err = cmd.CombinedOutput(); err != nil {
+		err = nil
+		if verbose {
+			logPrintf("-> no config\n")
+		}
 		return
 	}
 	remote = strings.TrimSpace(string(output))
@@ -272,9 +280,11 @@ func getTrackingInfo(branch string) (remote string, refnames []string) {
 		"branch."+branch+".merge")
 	var outpipe io.ReadCloser
 	if outpipe, err = cmd.StdoutPipe(); err != nil {
+		err = cmdError(cmd, err)
 		return
 	}
 	if err = cmd.Start(); err != nil {
+		err = cmdError(cmd, err)
 		return
 	}
 	scanner := bufio.NewScanner(outpipe)
@@ -285,6 +295,7 @@ func getTrackingInfo(branch string) (remote string, refnames []string) {
 		logPrintf("-> %s\n", strings.Join(refnames, ", "))
 	}
 	if err = cmd.Wait(); err != nil {
+		err = nil
 		return
 	}
 	return
@@ -342,7 +353,10 @@ func getAbbrevSymbolicFullName(refname string) (fullname string, err error) {
 		"--abbrev-ref", refname)
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
-		err = cmdErrOutput(cmd, err, output)
+		err = cmdError(cmd, err)
+		if verbose {
+			logPrintf("-> no name\n")
+		}
 		return
 	}
 	fullname = strings.TrimSpace(string(output))
@@ -357,7 +371,10 @@ func getCurrentBranch() (branch string, err error) {
 		"HEAD")
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
-		err = cmdErrOutput(cmd, err, output)
+		err = cmdError(cmd, err)
+		if verbose {
+			logPrintf("-> no branch\n")
+		}
 		return
 	}
 	branch = strings.TrimSpace(string(output))
@@ -408,7 +425,10 @@ func deleteBranchIfMerged(g *graph, n *node, branch, current *string) (err error
 		n.branch)
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
-		err = cmdErrOutput(cmd, err, output)
+		err = cmdError(cmd, err)
+		if verbose {
+			logPrintf("-> no hash\n")
+		}
 		return
 	}
 	hash := strings.TrimSpace(string(output))
@@ -420,7 +440,10 @@ func deleteBranchIfMerged(g *graph, n *node, branch, current *string) (err error
 			u.branch)
 		var output []byte
 		if output, err = cmd.CombinedOutput(); err != nil {
-			err = cmdErrOutput(cmd, err, output)
+			err = cmdError(cmd, err)
+			if verbose {
+				logPrintf("-> no hash\n")
+			}
 			return
 		}
 		uhash := strings.TrimSpace(string(output))
@@ -536,14 +559,6 @@ func cmdArgs(cmd *exec.Cmd) string {
 
 func cmdError(cmd *exec.Cmd, err error) error {
 	return fmt.Errorf("%s: %s", cmdArgs(cmd), err)
-}
-
-func cmdErrOutput(cmd *exec.Cmd, err error, output []byte) error {
-	o := string(output)
-	if o != "" {
-		o = "\n" + o
-	}
-	return fmt.Errorf("%s: %s%s", cmdArgs(cmd), err, o)
 }
 
 func logPrintf(format string, v ...interface{}) {
