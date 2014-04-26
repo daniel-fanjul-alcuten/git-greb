@@ -92,6 +92,8 @@ var (
 	commandColorCode string
 	currentColorName string
 	currentColorCode string
+	remoteColorName  string
+	remoteColorCode  string
 	resetColorCode   string
 )
 
@@ -115,6 +117,7 @@ func initColors() {
 	}
 	commandColorName, commandColorCode = initColor("command", "blue")
 	currentColorName, currentColorCode = initColor("current", "green")
+	remoteColorName, remoteColorCode = initColor("remote", "red")
 	return
 }
 
@@ -225,6 +228,8 @@ Other options:
   color.greb.command: The color of the git commands that the user needs to know
                       that have been run. Blue by default.
   color.greb.current: The color of the current branch. Green by default.
+  color.greb.remote:  The color of the branches in other repositories. Red by
+                      default.
 `
 
 func main() {
@@ -284,15 +289,17 @@ func greb(branches []string) (err error) {
 	}
 	branch, _ := getCurrentBranch()
 	if graphtxt {
-		fmt.Print(g.text(nil, "", "  ", branch, currentColorCode, resetColorCode))
+		fmt.Print(g.text(nil, "", "  ", branch, currentColorCode, remoteColorCode,
+			resetColorCode))
 		return
 	} else if graphdot {
-		fmt.Print(g.dot(branch, currentColorName))
+		fmt.Print(g.dot(branch, currentColorName, remoteColorName))
 		return
 	} else if graphxlib {
 		cmd := newCommand(!quiet, true, "dot", "-Txlib")
 		if !noop {
-			cmd.Stdin = bytes.NewBufferString(g.dot(branch, currentColorName))
+			cmd.Stdin = bytes.NewBufferString(g.dot(branch, currentColorName,
+				remoteColorName))
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err = cmd.Run(); err != nil {

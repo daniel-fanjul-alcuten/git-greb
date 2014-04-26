@@ -166,7 +166,7 @@ func TestGraphText(t *testing.T) {
 	g.edge(a, b, "ab")
 	g.edge(b, c, "bc")
 	g.edge(b, d, "bd")
-	s := bufio.NewScanner(bytes.NewBufferString(g.text(nil, "", "  ", "aa", "^", "$")))
+	s := bufio.NewScanner(bytes.NewBufferString(g.text(nil, "", "  ", "aa", "^", "0", "$")))
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
@@ -188,7 +188,7 @@ func TestGraphText(t *testing.T) {
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
-	if e := s.Text(); e != "dd" {
+	if e := s.Text(); e != "0dd$" {
 		t.Error(e)
 	}
 	if v := s.Scan(); !v {
@@ -218,7 +218,7 @@ func TestGraphDotWithoutColor(t *testing.T) {
 	}
 	g.edge(a, b, "ab")
 	g.edge(a, c, "ac")
-	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "")))
+	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "", "")))
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
@@ -276,7 +276,7 @@ func TestGraphDotWithColor(t *testing.T) {
 	}
 	g.edge(a, b, "ab")
 	g.edge(a, c, "ac")
-	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "green")))
+	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "green", "red")))
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
@@ -310,7 +310,7 @@ func TestGraphDotWithColor(t *testing.T) {
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
-	if e := s.Text(); e != "  \"cc\";" {
+	if e := s.Text(); e != "  \"cc\" [color=\"red\", fontcolor=\"red\"];" {
 		t.Error(e)
 	}
 	if v := s.Scan(); !v {

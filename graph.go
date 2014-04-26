@@ -151,7 +151,8 @@ func (ns *nodesort) Swap(i, j int) {
 	(*ns)[i], (*ns)[j] = (*ns)[j], (*ns)[i]
 }
 
-func (g *graph) text(n *node, indent, i string, current, prefix, suffix string) (s string) {
+func (g *graph) text(n *node, indent, i string, current,
+	currentColor, remoteColor, resetColor string) (s string) {
 	var nodes nodesort
 	if n == nil {
 		for _, n := range g.nodes {
@@ -165,7 +166,9 @@ func (g *graph) text(n *node, indent, i string, current, prefix, suffix string) 
 	sort.Sort(&nodes)
 	for _, n := range nodes {
 		if n.branch == current {
-			s += fmt.Sprintf("%v%v%v%v\n", indent, prefix, n.branch, suffix)
+			s += fmt.Sprintf("%v%v%v%v\n", indent, currentColor, n.branch, resetColor)
+		} else if n.remote != "." {
+			s += fmt.Sprintf("%v%v%v%v\n", indent, remoteColor, n.branch, resetColor)
 		} else {
 			s += fmt.Sprintf("%v%v\n", indent, n.branch)
 		}
@@ -175,13 +178,13 @@ func (g *graph) text(n *node, indent, i string, current, prefix, suffix string) 
 		}
 		sort.Sort(&downstreams)
 		for _, d := range downstreams {
-			s += g.text(d, indent+i, i, current, prefix, suffix)
+			s += g.text(d, indent+i, i, current, currentColor, remoteColor, resetColor)
 		}
 	}
 	return
 }
 
-func (g *graph) dot(branch, color string) (s string) {
+func (g *graph) dot(branch, currentColor, remoteColor string) (s string) {
 	var nodes nodesort
 	for _, n := range g.nodes {
 		nodes = append(nodes, n)
@@ -189,8 +192,12 @@ func (g *graph) dot(branch, color string) (s string) {
 	sort.Sort(&nodes)
 	s += "digraph {\n"
 	for _, n := range nodes {
-		if n.branch == branch && color != "" {
-			s += fmt.Sprintf("  \"%v\" [color=\"%[2]v\", fontcolor=\"%[2]v\"];\n", n.branch, color)
+		if n.branch == branch && currentColor != "" {
+			s += fmt.Sprintf("  \"%v\" [color=\"%[2]v\", fontcolor=\"%[2]v\"];\n",
+				n.branch, currentColor)
+		} else if n.remote != "." && remoteColor != "" {
+			s += fmt.Sprintf("  \"%v\" [color=\"%[2]v\", fontcolor=\"%[2]v\"];\n",
+				n.branch, remoteColor)
 		} else {
 			s += fmt.Sprintf("  \"%v\";\n", n.branch)
 		}

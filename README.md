@@ -90,6 +90,8 @@ Usage
       color.greb.command: The color of the git commands that the user needs to know
                           that have been run. Blue by default.
       color.greb.current: The color of the current branch. Green by default.
+      color.greb.remote:  The color of the branches in other repositories. Red by
+                          default.
 
 Example
 =======
@@ -185,7 +187,7 @@ done.
 + touch master
 + git add master
 + git commit -m file master
-[master (root-commit) a8edcf4] file master
+[master (root-commit) b704a57] file master
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 master
 + git push -u origin master
@@ -198,7 +200,7 @@ Branch foo set up to track local branch master.
 + touch foo
 + git add foo
 + git commit -m file foo
-[foo 25b82aa] file foo
+[foo 4643cb6] file foo
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 foo
 + git status --short --branch
@@ -209,7 +211,7 @@ Branch bar set up to track local branch master.
 + touch bar
 + git add bar
 + git commit -m file bar
-[bar 48d1af5] file bar
+[bar 40938b2] file bar
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 bar
 + git branch -u foo
@@ -222,7 +224,7 @@ Branch baz set up to track local branch master.
 + touch baz
 + git add baz
 + git commit -m file baz
-[baz 9fd9857] file baz
+[baz 24a0dcc] file baz
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 baz
 + git branch -u foo
@@ -274,24 +276,24 @@ greb: git pull --no-rebase
 From .
  * branch            bar        -> FETCH_HEAD
  * branch            baz        -> FETCH_HEAD
-Trying simple merge with 6b8c18672704a102cf590eeaf2dd206df6cd4ae2
-Trying simple merge with c5981cea2f3a68fe470a6e99ea03fb8158a677af
+Trying simple merge with 59dff2da40e58fc926781565252ef4af5e71dbb7
+Trying simple merge with 447c500c940317ebf0c2483ecb891d97da599ac3
 Merge made by the 'octopus' strategy.
 greb: git branch -D master
-Deleted branch master (was a8edcf4).
+Deleted branch master (was b704a57).
 greb: git config --unset branch.foo.merge ^refs/heads/master$
 greb: git config branch.foo.remote origin
 greb: git config --add branch.foo.merge refs/heads/master
 + git push origin bar:master
 To /tmp/git-greb1.git
-   a8edcf4..6b8c186  bar -> master
+   b704a57..59dff2d  bar -> master
 + /home/dfanjul/lib/go/bin/git-greb -d
 greb: git checkout foo
 Switched to branch 'foo'
 Your branch is behind 'origin/master' by 1 commit, and can be fast-forwarded.
 greb: git pull
 First, rewinding head to replay your work on top of it...
-Fast-forwarded foo to 6b8c18672704a102cf590eeaf2dd206df6cd4ae2.
+Fast-forwarded foo to 59dff2da40e58fc926781565252ef4af5e71dbb7.
 greb: git checkout baz
 Switched to branch 'baz'
 Your branch and 'foo' have diverged,
@@ -317,22 +319,22 @@ From .
  * branch            baz        -> FETCH_HEAD
 Merge made by the 'recursive' strategy.
 greb: git branch -D bar
-Deleted branch bar (was 6b8c186).
+Deleted branch bar (was 59dff2d).
 greb: git config --unset branch.qux.merge ^refs/heads/bar$
 greb: git config --add branch.qux.merge refs/heads/foo
 greb: git branch -D foo
-Deleted branch foo (was 6b8c186).
+Deleted branch foo (was 59dff2d).
 greb: git config --unset branch.baz.merge ^refs/heads/foo$
 greb: git config branch.baz.remote origin
 greb: git config --add branch.baz.merge refs/heads/master
 greb: git config --unset branch.qux.merge ^refs/heads/foo$
 + git rebase -f baz qux
 First, rewinding head to replay your work on top of it...
-Applying: file baz
+Applying: file bar
 Using index info to reconstruct a base tree...
 Falling back to patching base and 3-way merge...
 No changes -- Patch already applied.
-Applying: file bar
+Applying: file baz
 Using index info to reconstruct a base tree...
 Falling back to patching base and 3-way merge...
 No changes -- Patch already applied.
@@ -350,8 +352,8 @@ From .
  * branch            baz        -> FETCH_HEAD
 Current branch qux is up to date.
 greb: git checkout --detach
-HEAD is now at ae95dcf... file baz
+HEAD is now at 35b702d... file baz
 greb: git branch -D qux
-Deleted branch qux (was ae95dcf).
+Deleted branch qux (was 35b702d).
 
 </pre>
