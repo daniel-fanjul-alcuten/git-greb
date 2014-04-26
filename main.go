@@ -199,6 +199,8 @@ Other options:
 
 %[2]s checks some git options in the usual git configuration files:
 
+  greb.local:        If the option -l is false, this bool option is used
+                     instead.
   color.greb:        It enables or disables color in %[2]s. See color.ui for
                      more information.
   color.greb.branch: The color for the git commands that the user needs to know
@@ -221,12 +223,30 @@ func main() {
 		)
 	}
 	flag.Parse()
+	initColors()
+	updateFlagsWithOptions()
 	if err := assertFlags(); err != nil {
 		logFatal(err)
 	}
-	initColors()
 	if err := greb(flag.Args()); err != nil {
 		logFatal(err)
+	}
+}
+
+func updateFlagsWithOptions() {
+	if !local {
+		cmd := newCommand(verbose, false, "git", "config", "--bool", "greb.local")
+		if output, err := cmd.CombinedOutput(); err != nil {
+			if verbose {
+				logPrintf("-> no config\n")
+			}
+		} else {
+			l := strings.TrimSpace(string(output))
+			if verbose {
+				logPrintf("-> %s\n", l)
+			}
+			local = l == "true"
+		}
 	}
 }
 

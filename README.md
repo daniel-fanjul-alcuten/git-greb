@@ -83,6 +83,8 @@ Usage
     
     git-greb checks some git options in the usual git configuration files:
     
+      greb.local:        If the option -l is false, this bool option is used
+                         instead.
       color.greb:        It enables or disables color in git-greb. See color.ui for
                          more information.
       color.greb.branch: The color for the git commands that the user needs to know
@@ -104,6 +106,7 @@ rm -rf /tmp/$dir2
 git clone /tmp/$dir1 /tmp/$dir2
 cd /tmp/$dir2
 git config pull.rebase true
+git config greb.local false
 
 touch master
 git add master
@@ -177,10 +180,11 @@ warning: You appear to have cloned an empty repository.
 done.
 + cd /tmp/git-greb2.git
 + git config pull.rebase true
++ git config greb.local false
 + touch master
 + git add master
 + git commit -m file master
-[master (root-commit) 0f81a47] file master
+[master (root-commit) 5176842] file master
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 master
 + git push -u origin master
@@ -193,7 +197,7 @@ Branch foo set up to track local branch master.
 + touch foo
 + git add foo
 + git commit -m file foo
-[foo 2eca399] file foo
+[foo 4712a01] file foo
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 foo
 + git status --short --branch
@@ -204,7 +208,7 @@ Branch bar set up to track local branch master.
 + touch bar
 + git add bar
 + git commit -m file bar
-[bar 35eaadb] file bar
+[bar 8cdd600] file bar
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 bar
 + git branch -u foo
@@ -217,7 +221,7 @@ Branch baz set up to track local branch master.
 + touch baz
 + git add baz
 + git commit -m file baz
-[baz 96c2a76] file baz
+[baz f9900d7] file baz
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 baz
 + git branch -u foo
@@ -269,24 +273,24 @@ greb: git pull --no-rebase
 From .
  * branch            bar        -> FETCH_HEAD
  * branch            baz        -> FETCH_HEAD
-Trying simple merge with 5ce26620118505e84d5603ed8c1bf49d61e6e620
-Trying simple merge with b9ff5d695441dd0f6745187eddb72495e557de68
+Trying simple merge with b51f777604a2d7b15f5e4af60363ccc60540058d
+Trying simple merge with 8900689f79843fe530445125b1ac57966fd0ebe4
 Merge made by the 'octopus' strategy.
 greb: git branch -D master
-Deleted branch master (was 0f81a47).
+Deleted branch master (was 5176842).
 greb: git config --unset branch.foo.merge ^refs/heads/master$
 greb: git config branch.foo.remote origin
 greb: git config --add branch.foo.merge refs/heads/master
 + git push origin bar:master
 To /tmp/git-greb1.git
-   0f81a47..5ce2662  bar -> master
+   5176842..b51f777  bar -> master
 + /home/dfanjul/lib/go/bin/git-greb -d
 greb: git checkout foo
 Switched to branch 'foo'
 Your branch is behind 'origin/master' by 1 commit, and can be fast-forwarded.
 greb: git pull
 First, rewinding head to replay your work on top of it...
-Fast-forwarded foo to 5ce26620118505e84d5603ed8c1bf49d61e6e620.
+Fast-forwarded foo to b51f777604a2d7b15f5e4af60363ccc60540058d.
 greb: git checkout baz
 Switched to branch 'baz'
 Your branch and 'foo' have diverged,
@@ -312,22 +316,22 @@ From .
  * branch            baz        -> FETCH_HEAD
 Merge made by the 'recursive' strategy.
 greb: git branch -D bar
-Deleted branch bar (was 5ce2662).
+Deleted branch bar (was b51f777).
 greb: git config --unset branch.qux.merge ^refs/heads/bar$
 greb: git config --add branch.qux.merge refs/heads/foo
 greb: git branch -D foo
-Deleted branch foo (was 5ce2662).
+Deleted branch foo (was b51f777).
 greb: git config --unset branch.baz.merge ^refs/heads/foo$
 greb: git config branch.baz.remote origin
 greb: git config --add branch.baz.merge refs/heads/master
 greb: git config --unset branch.qux.merge ^refs/heads/foo$
 + git rebase -f baz qux
 First, rewinding head to replay your work on top of it...
-Applying: file baz
+Applying: file bar
 Using index info to reconstruct a base tree...
 Falling back to patching base and 3-way merge...
 No changes -- Patch already applied.
-Applying: file bar
+Applying: file baz
 Using index info to reconstruct a base tree...
 Falling back to patching base and 3-way merge...
 No changes -- Patch already applied.
@@ -345,8 +349,8 @@ From .
  * branch            baz        -> FETCH_HEAD
 Current branch qux is up to date.
 greb: git checkout --detach
-HEAD is now at 3f3d20f... file baz
+HEAD is now at ebd479e... file baz
 greb: git branch -D qux
-Deleted branch qux (was 3f3d20f).
+Deleted branch qux (was ebd479e).
 
 </pre>

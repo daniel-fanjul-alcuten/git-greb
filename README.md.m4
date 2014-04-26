@@ -34,6 +34,7 @@ rm -rf /tmp/$dir2
 git clone /tmp/$dir1 /tmp/$dir2
 cd /tmp/$dir2
 git config pull.rebase true
+git config greb.local false
 
 touch master
 git add master
