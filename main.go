@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
 )
 
@@ -174,6 +175,23 @@ func greb(branches []string) (err error) {
 	}
 	branch, _ := getCurrentBranch()
 	current := branch
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+	defer func() {
+		signal.Stop(s)
+		// There is a race condition: the signal may not be sent to the channel
+		// before we reach this point. The channel cannot be used.
+		if err != nil {
+			// The string comparision is ugly, but the race condition is too much
+			// uncertain.
+			if !strings.HasSuffix(err.Error(), "signal: interrupt") {
+				return
+			}
+		}
+		if branch != "" {
+			checkoutBranchIfNeeded(branch, &current)
+		}
+	}()
 	sort := g.sort()
 	if !skip {
 		for _, n := range sort {
@@ -189,9 +207,6 @@ func greb(branches []string) (err error) {
 				return
 			}
 		}
-	}
-	if branch != "" {
-		checkoutBranchIfNeeded(branch, &current)
 	}
 	return
 }
