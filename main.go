@@ -88,8 +88,8 @@ func assertFlags() (err error) {
 }
 
 var (
-	blueColor  string
-	resetColor string
+	commandColor string
+	resetColor   string
 )
 
 func initColors() {
@@ -106,28 +106,28 @@ func initColors() {
 	if verbose {
 		logPrintf("-> true\n")
 	}
-	var blue string
+	var command string
 	cmd = newCommand(verbose, false, "git", "config", "--get-color",
-		"color.greb.branch", "blue")
+		"color.greb.command", "blue")
 	var output []byte
 	var err error
 	if output, err = cmd.CombinedOutput(); err != nil {
 		return
 	}
-	blue = string(output)
+	command = string(output)
 	cmd = newCommand(verbose, false, "git", "config", "--get-color", "", "reset")
 	var reset string
 	if output, err = cmd.CombinedOutput(); err != nil {
 		return
 	}
 	reset = string(output)
-	blueColor, resetColor = blue, reset
+	commandColor, resetColor = command, reset
 	return
 }
 
-func getColors(color bool) (blue, reset string) {
+func getCommandColor(color bool) (command, reset string) {
 	if color {
-		blue, reset = blueColor, resetColor
+		command, reset = commandColor, resetColor
 	}
 	return
 }
@@ -199,12 +199,12 @@ Other options:
 
 %[2]s checks some git options in the usual git configuration files:
 
-  greb.local:        If the option -l is false, this bool option is used
-                     instead.
-  color.greb:        It enables or disables color in %[2]s. See color.ui for
-                     more information.
-  color.greb.branch: The color for the git commands that the user needs to know
-                     that have been run. Blue by default.
+  greb.local:         If the option -l is false, this bool option is used
+                      instead.
+  color.greb:         It enables or disables color in %[2]s. See color.ui for
+                      more information.
+  color.greb.command: The color of the git commands that the user needs to know
+                      that have been run. Blue by default.
 `
 
 func main() {
@@ -677,8 +677,8 @@ func checkoutBranchIfNeeded(branch string, current *string) (err error) {
 func newCommand(verbose, color bool, name string, arg ...string) (cmd *exec.Cmd) {
 	cmd = exec.Command(name, arg...)
 	if verbose {
-		blue, reset := getColors(color)
-		logPrintf("%s%s%s\n", blue, cmdArgs(cmd), reset)
+		command, reset := getCommandColor(color)
+		logPrintf("%s%s%s\n", command, cmdArgs(cmd), reset)
 	}
 	return
 }
