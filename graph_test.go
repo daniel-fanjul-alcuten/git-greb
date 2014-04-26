@@ -166,7 +166,7 @@ func TestGraphText(t *testing.T) {
 	g.edge(a, b, "ab")
 	g.edge(b, c, "bc")
 	g.edge(b, d, "bd")
-	s := bufio.NewScanner(bytes.NewBufferString(g.text(nil, "", "  ")))
+	s := bufio.NewScanner(bytes.NewBufferString(g.text(nil, "", "  ", "aa", "^", "$")))
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
@@ -182,7 +182,7 @@ func TestGraphText(t *testing.T) {
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
-	if e := s.Text(); e != "    aa" {
+	if e := s.Text(); e != "    ^aa$" {
 		t.Error(e)
 	}
 	if v := s.Scan(); !v {
@@ -200,7 +200,7 @@ func TestGraphText(t *testing.T) {
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
-	if e := s.Text(); e != "    aa" {
+	if e := s.Text(); e != "    ^aa$" {
 		t.Error(e)
 	}
 	if v := s.Scan(); v {
@@ -208,7 +208,7 @@ func TestGraphText(t *testing.T) {
 	}
 }
 
-func TestGraphDot(t *testing.T) {
+func TestGraphDotWithoutColor(t *testing.T) {
 	g := newGraph()
 	a, _ := g.node(ref{"a", "."})
 	b, _ := g.node(ref{"b", "."})
@@ -218,7 +218,7 @@ func TestGraphDot(t *testing.T) {
 	}
 	g.edge(a, b, "ab")
 	g.edge(a, c, "ac")
-	s := bufio.NewScanner(bytes.NewBufferString(g.dot()))
+	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "")))
 	if v := s.Scan(); !v {
 		t.Fatal(v)
 	}
@@ -247,6 +247,64 @@ func TestGraphDot(t *testing.T) {
 		t.Fatal(v)
 	}
 	if e := s.Text(); e != "  \"bb\";" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  \"cc\";" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "}" {
+		t.Error(e)
+	}
+	if v := s.Scan(); v {
+		t.Fatal(v)
+	}
+}
+
+func TestGraphDotWithColor(t *testing.T) {
+	g := newGraph()
+	a, _ := g.node(ref{"a", "."})
+	b, _ := g.node(ref{"b", "."})
+	c, _ := g.node(ref{"c", "origin"})
+	for _, n := range []*node{a, b, c} {
+		n.branch = strings.Repeat(n.name, 2)
+	}
+	g.edge(a, b, "ab")
+	g.edge(a, c, "ac")
+	s := bufio.NewScanner(bytes.NewBufferString(g.dot("bb", "green")))
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "digraph {" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  \"aa\";" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  \"aa\" -> \"bb\";" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  \"aa\" -> \"cc\" [style=dotted];" {
+		t.Error(e)
+	}
+	if v := s.Scan(); !v {
+		t.Fatal(v)
+	}
+	if e := s.Text(); e != "  \"bb\" [color=\"green\", fontcolor=\"green\"];" {
 		t.Error(e)
 	}
 	if v := s.Scan(); !v {

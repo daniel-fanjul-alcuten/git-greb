@@ -81,7 +81,7 @@ Usage
         -v=false: it explains intermediate steps (verbose).
         -n=false: it does not run any command (noop).
     
-    git-greb checks some git options in the usual git configuration files:
+    git-greb checks the following options in the usual git configuration files:
     
       greb.local:         If the option -l is false, this bool option is used
                           instead.
@@ -89,6 +89,7 @@ Usage
                           more information.
       color.greb.command: The color of the git commands that the user needs to know
                           that have been run. Blue by default.
+      color.greb.current: The color of the current branch. Green by default.
 
 Example
 =======
@@ -184,7 +185,7 @@ done.
 + touch master
 + git add master
 + git commit -m file master
-[master (root-commit) dc53867] file master
+[master (root-commit) a8edcf4] file master
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 master
 + git push -u origin master
@@ -197,7 +198,7 @@ Branch foo set up to track local branch master.
 + touch foo
 + git add foo
 + git commit -m file foo
-[foo e6b5005] file foo
+[foo 25b82aa] file foo
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 foo
 + git status --short --branch
@@ -208,7 +209,7 @@ Branch bar set up to track local branch master.
 + touch bar
 + git add bar
 + git commit -m file bar
-[bar 7a7a4e0] file bar
+[bar 48d1af5] file bar
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 bar
 + git branch -u foo
@@ -221,7 +222,7 @@ Branch baz set up to track local branch master.
 + touch baz
 + git add baz
 + git commit -m file baz
-[baz 52c57dd] file baz
+[baz 9fd9857] file baz
  1 file changed, 0 insertions(+), 0 deletions(-)
  create mode 100644 baz
 + git branch -u foo
@@ -273,24 +274,24 @@ greb: git pull --no-rebase
 From .
  * branch            bar        -> FETCH_HEAD
  * branch            baz        -> FETCH_HEAD
-Trying simple merge with 46cedc2ba7ba66c4121509e7c2b76145eedfb86e
-Trying simple merge with 5e20fd387faf6239c7093fefbe2de313c9eceac2
+Trying simple merge with 6b8c18672704a102cf590eeaf2dd206df6cd4ae2
+Trying simple merge with c5981cea2f3a68fe470a6e99ea03fb8158a677af
 Merge made by the 'octopus' strategy.
 greb: git branch -D master
-Deleted branch master (was dc53867).
+Deleted branch master (was a8edcf4).
 greb: git config --unset branch.foo.merge ^refs/heads/master$
 greb: git config branch.foo.remote origin
 greb: git config --add branch.foo.merge refs/heads/master
 + git push origin bar:master
 To /tmp/git-greb1.git
-   dc53867..46cedc2  bar -> master
+   a8edcf4..6b8c186  bar -> master
 + /home/dfanjul/lib/go/bin/git-greb -d
 greb: git checkout foo
 Switched to branch 'foo'
 Your branch is behind 'origin/master' by 1 commit, and can be fast-forwarded.
 greb: git pull
 First, rewinding head to replay your work on top of it...
-Fast-forwarded foo to 46cedc2ba7ba66c4121509e7c2b76145eedfb86e.
+Fast-forwarded foo to 6b8c18672704a102cf590eeaf2dd206df6cd4ae2.
 greb: git checkout baz
 Switched to branch 'baz'
 Your branch and 'foo' have diverged,
@@ -316,11 +317,11 @@ From .
  * branch            baz        -> FETCH_HEAD
 Merge made by the 'recursive' strategy.
 greb: git branch -D bar
-Deleted branch bar (was 46cedc2).
+Deleted branch bar (was 6b8c186).
 greb: git config --unset branch.qux.merge ^refs/heads/bar$
 greb: git config --add branch.qux.merge refs/heads/foo
 greb: git branch -D foo
-Deleted branch foo (was 46cedc2).
+Deleted branch foo (was 6b8c186).
 greb: git config --unset branch.baz.merge ^refs/heads/foo$
 greb: git config branch.baz.remote origin
 greb: git config --add branch.baz.merge refs/heads/master
@@ -349,8 +350,8 @@ From .
  * branch            baz        -> FETCH_HEAD
 Current branch qux is up to date.
 greb: git checkout --detach
-HEAD is now at d084d62... file baz
+HEAD is now at ae95dcf... file baz
 greb: git branch -D qux
-Deleted branch qux (was d084d62).
+Deleted branch qux (was ae95dcf).
 
 </pre>

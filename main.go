@@ -88,8 +88,11 @@ func assertFlags() (err error) {
 }
 
 var (
-	commandColor string
-	resetColor   string
+	commandColorName string
+	commandColorCode string
+	currentColorName string
+	currentColorCode string
+	resetColorCode   string
 )
 
 func initColors() {
@@ -106,28 +109,44 @@ func initColors() {
 	if verbose {
 		logPrintf("-> true\n")
 	}
-	var command string
-	cmd = newCommand(verbose, false, "git", "config", "--get-color",
-		"color.greb.command", "blue")
-	var output []byte
-	var err error
-	if output, err = cmd.CombinedOutput(); err != nil {
-		return
-	}
-	command = string(output)
 	cmd = newCommand(verbose, false, "git", "config", "--get-color", "", "reset")
-	var reset string
-	if output, err = cmd.CombinedOutput(); err != nil {
-		return
+	if output, err := cmd.CombinedOutput(); err == nil {
+		resetColorCode = string(output)
 	}
-	reset = string(output)
-	commandColor, resetColor = command, reset
+	commandColorName, commandColorCode = initColor("command", "blue")
+	currentColorName, currentColorCode = initColor("current", "green")
+	return
+}
+
+func initColor(slot, defaultName string) (name, code string) {
+	cmd := newCommand(verbose, false, "git", "config",
+		"color.greb."+slot)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		name = defaultName
+	} else {
+		name = strings.TrimSpace(string(output))
+	}
+	if verbose {
+		logPrintf("-> %v\n", name)
+	}
+	cmd = newCommand(verbose, false, "git", "config", "--get-color",
+		"color.greb."+slot, name)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		if verbose && resetColorCode != "" {
+			logPrintf("-> %v\n", err)
+		}
+	} else {
+		code = string(output)
+		if verbose && resetColorCode != "" {
+			logPrintf("-> %v%v%v\n", code, name, resetColorCode)
+		}
+	}
 	return
 }
 
 func getCommandColor(color bool) (command, reset string) {
 	if color {
-		command, reset = commandColor, resetColor
+		command, reset = commandColorCode, resetColorCode
 	}
 	return
 }
@@ -197,7 +216,7 @@ Other options:
 %[16]s
 %[17]s
 
-%[2]s checks some git options in the usual git configuration files:
+%[2]s checks the following options in the usual git configuration files:
 
   greb.local:         If the option -l is false, this bool option is used
                       instead.
@@ -205,6 +224,7 @@ Other options:
                       more information.
   color.greb.command: The color of the git commands that the user needs to know
                       that have been run. Blue by default.
+  color.greb.current: The color of the current branch. Green by default.
 `
 
 func main() {
@@ -262,16 +282,17 @@ func greb(branches []string) (err error) {
 			return
 		}
 	}
+	branch, _ := getCurrentBranch()
 	if graphtxt {
-		fmt.Print(g.text(nil, "", "  "))
+		fmt.Print(g.text(nil, "", "  ", branch, currentColorCode, resetColorCode))
 		return
 	} else if graphdot {
-		fmt.Print(g.dot())
+		fmt.Print(g.dot(branch, currentColorName))
 		return
 	} else if graphxlib {
 		cmd := newCommand(!quiet, true, "dot", "-Txlib")
 		if !noop {
-			cmd.Stdin = bytes.NewBufferString(g.dot())
+			cmd.Stdin = bytes.NewBufferString(g.dot(branch, currentColorName))
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			if err = cmd.Run(); err != nil {
@@ -281,7 +302,6 @@ func greb(branches []string) (err error) {
 		}
 		return
 	}
-	branch, _ := getCurrentBranch()
 	current := branch
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)

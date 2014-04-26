@@ -151,7 +151,7 @@ func (ns *nodesort) Swap(i, j int) {
 	(*ns)[i], (*ns)[j] = (*ns)[j], (*ns)[i]
 }
 
-func (g *graph) text(n *node, indent, i string) (s string) {
+func (g *graph) text(n *node, indent, i string, current, prefix, suffix string) (s string) {
 	var nodes nodesort
 	if n == nil {
 		for _, n := range g.nodes {
@@ -164,20 +164,24 @@ func (g *graph) text(n *node, indent, i string) (s string) {
 	}
 	sort.Sort(&nodes)
 	for _, n := range nodes {
-		s += fmt.Sprintf("%v%v\n", indent, n.branch)
+		if n.branch == current {
+			s += fmt.Sprintf("%v%v%v%v\n", indent, prefix, n.branch, suffix)
+		} else {
+			s += fmt.Sprintf("%v%v\n", indent, n.branch)
+		}
 		var downstreams nodesort
 		for d := range n.downstreams {
 			downstreams = append(downstreams, d)
 		}
 		sort.Sort(&downstreams)
 		for _, d := range downstreams {
-			s += g.text(d, indent+i, i)
+			s += g.text(d, indent+i, i, current, prefix, suffix)
 		}
 	}
 	return
 }
 
-func (g *graph) dot() (s string) {
+func (g *graph) dot(branch, color string) (s string) {
 	var nodes nodesort
 	for _, n := range g.nodes {
 		nodes = append(nodes, n)
@@ -185,7 +189,11 @@ func (g *graph) dot() (s string) {
 	sort.Sort(&nodes)
 	s += "digraph {\n"
 	for _, n := range nodes {
-		s += fmt.Sprintf("  \"%v\";\n", n.branch)
+		if n.branch == branch && color != "" {
+			s += fmt.Sprintf("  \"%v\" [color=\"%[2]v\", fontcolor=\"%[2]v\"];\n", n.branch, color)
+		} else {
+			s += fmt.Sprintf("  \"%v\";\n", n.branch)
+		}
 		var upstreams nodesort
 		for u := range n.upstreams {
 			upstreams = append(upstreams, u)
