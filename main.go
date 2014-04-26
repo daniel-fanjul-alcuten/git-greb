@@ -147,8 +147,11 @@ func greb(branches []string) (err error) {
 		if g, err = fillGraphForAllBranches(); err != nil {
 			return
 		}
-	} else if g, err = fillGraphForBranches(branches); err != nil {
-		return
+	} else {
+		branches = filterBranches(branches)
+		if g, err = fillGraphForBranches(branches); err != nil {
+			return
+		}
 	}
 	if graphtxt {
 		fmt.Print(g.text(nil, "", "  "))
@@ -191,6 +194,16 @@ func greb(branches []string) (err error) {
 		checkoutBranchIfNeeded(branch, &current)
 	}
 	return
+}
+
+func filterBranches(branches []string) []string {
+	fb := make([]string, 0, len(branches))
+	for _, b := range branches {
+		if n, err := getAbbrevSymbolicFullName(b); err == nil {
+			fb = append(fb, n)
+		}
+	}
+	return fb
 }
 
 func fillGraphForAllBranches() (g *graph, err error) {
