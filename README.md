@@ -13,6 +13,14 @@ Use 'go get':
 go get github.com/daniel-fanjul-alcuten/git-greb
 </pre>
 
+Update
+======
+
+Use 'go get -u'
+<pre>
+go get -u github.com/daniel-fanjul-alcuten/git-greb
+</pre>
+
 Usage
 =====
 
