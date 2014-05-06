@@ -401,23 +401,24 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 			}
 			if remote == "." {
 				for _, r := range refnames {
-					if branch, err = getAbbrevSymbolicFullName(r); err != nil {
-						return
+					if branch, err := getAbbrevSymbolicFullName(r); err == nil {
+						// TODO tracking ref is assumed to be a branch
+						u, _ := g.node(ref{"refs/heads/" + branch, remote})
+						g.edge(n, u, r)
+						pending = append(pending, branch)
 					}
-					// TODO tracking ref is assumed to be a branch
-					u, _ := g.node(ref{"refs/heads/" + branch, remote})
-					g.edge(n, u, r)
-					pending = append(pending, branch)
 				}
 			} else if remote != "" {
 				for _, r := range refnames {
 					u, ok := g.node(ref{r, remote})
-					if !ok {
-						if u.branch, err = findRemoteTrackingBranch(u.ref); err != nil {
-							return
-						}
+					if ok {
+						g.edge(n, u, r)
+					} else if branch, err := findRemoteTrackingBranch(u.ref); err == nil {
+						u.branch = branch
+						g.edge(n, u, r)
+					} else {
+						delete(g.nodes, u.ref)
 					}
-					g.edge(n, u, r)
 				}
 			}
 		}
