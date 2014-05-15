@@ -75,13 +75,15 @@ Usage
     
         -l=false: it only pulls local tracking branches (local).
     
-    git-greb checks out every branch before pulling it and stops when a command
-    doesn't finish with exit status 0. If this happens, the current branch may not
-    be the same than the original one. If all of them finish successfully git-greb
-    tries to return to the original branch, but it may have been deleted. As a
-    consequence, the user should expect that the current branch may be different or
-    even that the head may become detached. git-greb tries to minimize the number of
-    check outs.
+    git-greb checks out every branch before pulling and stops when a command doesn't
+    finish with exit status 0. If all pulls finish successfully git-greb tries to
+    return to the original branch. The option -C may be used to return to a
+    different one. As the branch may have been deleted or any command may have
+    failed, the user should expect that the current branch may be different or even
+    that the HEAD may become detached. git-greb tries to minimize the number of
+    checkouts.
+    
+        -C=HEAD: it checks out the given branch before exit (change branch).
     
     Other options:
     

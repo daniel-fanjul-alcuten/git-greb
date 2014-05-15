@@ -18,6 +18,7 @@ var (
 	graphtxt    bool
 	graphdot    bool
 	graphxlib   bool
+	change      string
 	rebase      bool
 	merge       bool
 	interactive bool
@@ -38,6 +39,8 @@ func init() {
 		"it uses the dot format (dot graph).")
 	flag.BoolVar(&graphxlib, "x", false,
 		"it draws the dot format in an xlib window (xlib graph).")
+	flag.StringVar(&change, "C", "HEAD",
+		"it checks out the given branch before exit (change branch).")
 	flag.BoolVar(&rebase, "r", false,
 		"it pulls every branch with --rebase (rebase).")
 	flag.BoolVar(&merge, "m", false,
@@ -205,13 +208,15 @@ upstream branch in a different repository from the local one.
 
 %[14]s
 
-%[2]s checks out every branch before pulling it and stops when a command
-doesn't finish with exit status 0. If this happens, the current branch may not
-be the same than the original one. If all of them finish successfully %[2]s
-tries to return to the original branch, but it may have been deleted. As a
-consequence, the user should expect that the current branch may be different or
-even that the head may become detached. %[2]s tries to minimize the number of
-check outs.
+%[2]s checks out every branch before pulling and stops when a command doesn't
+finish with exit status 0. If all pulls finish successfully %[2]s tries to
+return to the original branch. The option %[18]s may be used to return to a
+different one. As the branch may have been deleted or any command may have
+failed, the user should expect that the current branch may be different or even
+that the HEAD may become detached. %[2]s tries to minimize the number of
+checkouts.
+
+%[19]s
 
 Other options:
 
@@ -245,6 +250,7 @@ func main() {
 			"-d", f("d"),
 			"-l", f("l"),
 			f("q"), f("v"), f("n"),
+			"-C", f("C"),
 		)
 	}
 	flag.Parse()
@@ -287,7 +293,7 @@ func greb(branches []string) (err error) {
 			return
 		}
 	}
-	branch, _ := getCurrentBranch()
+	branch, _ := getAbbrevSymbolicFullName(change)
 	if graphtxt {
 		fmt.Print(g.text(nil, "", "  ", branch, currentColorCode, remoteColorCode,
 			resetColorCode))
@@ -526,24 +532,6 @@ func getAbbrevSymbolicFullName(refname string) (fullname string, err error) {
 	fullname = strings.TrimSpace(string(output))
 	if verbose {
 		logPrintf("-> %s\n", fullname)
-	}
-	return
-}
-
-func getCurrentBranch() (branch string, err error) {
-	cmd := newCommand(verbose, false, "git", "symbolic-ref", "-q", "--short",
-		"HEAD")
-	var output []byte
-	if output, err = cmd.CombinedOutput(); err != nil {
-		err = cmdError(cmd, err)
-		if verbose {
-			logPrintf("-> no branch\n")
-		}
-		return
-	}
-	branch = strings.TrimSpace(string(output))
-	if verbose {
-		logPrintf("-> %s\n", branch)
 	}
 	return
 }
