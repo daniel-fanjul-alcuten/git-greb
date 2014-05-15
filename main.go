@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	bash        string
 	graphtxt    bool
 	graphdot    bool
 	graphxlib   bool
@@ -33,6 +34,8 @@ var (
 
 func init() {
 	log.SetFlags(0)
+	flag.StringVar(&bash, "bash", "",
+		"name of the bash function to use with complete (bash completion)")
 	flag.BoolVar(&graphtxt, "t", false,
 		"it uses a custom text format (text graph).")
 	flag.BoolVar(&graphdot, "dot", false,
@@ -68,6 +71,7 @@ func assertFlags() (err error) {
 		name  string
 		value bool
 	}{
+		{"-bash (bash completion)", bash != ""},
 		{"-t (text graph)", graphtxt},
 		{"-dot (dot graph)", graphdot},
 		{"-x (xlib graph)", graphxlib},
@@ -223,6 +227,7 @@ Other options:
 %[15]s
 %[16]s
 %[17]s
+%[20]s
 
 %[2]s checks the following options in the usual git configuration files:
 
@@ -241,7 +246,7 @@ func main() {
 	flag.Usage = func() {
 		f := func(name string) string {
 			f := flag.Lookup(name)
-			format := "  %4s=%s: %s"
+			format := "  %5s=%s: %s"
 			return fmt.Sprintf(format, "-"+name, f.DefValue, f.Usage)
 		}
 		fmt.Fprintf(os.Stderr, usage, os.Args[0], filepath.Base(os.Args[0]),
@@ -251,6 +256,7 @@ func main() {
 			"-l", f("l"),
 			f("q"), f("v"), f("n"),
 			"-C", f("C"),
+			f("bash"),
 		)
 	}
 	flag.Parse()
@@ -259,9 +265,40 @@ func main() {
 	if err := assertFlags(); err != nil {
 		logFatal(err)
 	}
-	if err := greb(flag.Args()); err != nil {
+	if bash != "" {
+		fmt.Println(bashCompletion(bash))
+	} else if err := greb(flag.Args()); err != nil {
 		logFatal(err)
 	}
+}
+
+func bashCompletion(funcname string) string {
+	return fmt.Sprintf(`%s() {
+	local cur=${COMP_WORDS[COMP_CWORD]}
+	if [ $COMP_CWORD -gt 1 ]; then
+		local prev=${COMP_WORDS[$(($COMP_CWORD-1))]}
+		case $prev in
+			-C|--C)
+				local branches=$(git for-each-ref refs/heads --format '%%(refname:short)' -s)
+				COMPREPLY=( $(compgen -W "$branches" -- $cur) )
+				return
+				;;
+			-bash|--bash)
+				COMPREPLY=()
+				return
+				;;
+		esac
+	fi
+	case $cur in
+		--*)
+			local opts="--bash --t --dot --x --C --r --m --i --c --s --d --l --q --v --n"
+			COMPREPLY=( $(compgen -W "$opts" -- $cur) )
+			return
+			;;
+	esac
+	local opts="-bash -t -dot -x -C -r -m -i -c -s -d -l -q -v -n"
+	COMPREPLY=( $(compgen -W "$opts" -- $cur) )
+}`, funcname)
 }
 
 func updateFlagsWithOptions() {

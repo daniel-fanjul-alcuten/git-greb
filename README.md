@@ -43,20 +43,20 @@ Usage
     The first set of options makes git-greb dump the graph in the standard output in
     different formats and then exit:
     
-        -t=false: it uses a custom text format (text graph).
-      -dot=false: it uses the dot format (dot graph).
-        -x=false: it draws the dot format in an xlib window (xlib graph).
+         -t=false: it uses a custom text format (text graph).
+       -dot=false: it uses the dot format (dot graph).
+         -x=false: it draws the dot format in an xlib window (xlib graph).
     
     The second set of options makes git-greb traverse the graph visiting the branches
     in order from the downstreams to the upstreams and running some variant of 'git
     pull' on them. If no option is provided 'git pull' merges or rebases depending
     on the usual git options.
     
-        -r=false: it pulls every branch with --rebase (rebase).
-        -m=false: it pulls every branch with --no-rebase (merge).
-        -i=false: it rebases with --interactive (interactive).
-        -c=false: it checks out instead of pulling (checkout).
-        -s=false: it does not pull at all (skip).
+         -r=false: it pulls every branch with --rebase (rebase).
+         -m=false: it pulls every branch with --no-rebase (merge).
+         -i=false: it rebases with --interactive (interactive).
+         -c=false: it checks out instead of pulling (checkout).
+         -s=false: it does not pull at all (skip).
     
     The option -d makes git-greb delete branches that don't create new history
     over their tracking branches. None is deleted until all of them have been
@@ -68,12 +68,12 @@ Usage
     depends on a branch B, B depends on a set of branches C, and B is eligible for
     deletion: all branches A stop tracking B and start tracking the branches C.
     
-        -d=false: it deletes fully merged branches after pulling (delete).
+         -d=false: it deletes fully merged branches after pulling (delete).
     
     The option -l makes git-greb pull only those branches that don't have any
     upstream branch in a different repository from the local one.
     
-        -l=false: it only pulls local tracking branches (local).
+         -l=false: it only pulls local tracking branches (local).
     
     git-greb checks out every branch before pulling and stops when a command doesn't
     finish with exit status 0. If all pulls finish successfully git-greb tries to
@@ -83,13 +83,14 @@ Usage
     that the HEAD may become detached. git-greb tries to minimize the number of
     checkouts.
     
-        -C=HEAD: it checks out the given branch before exit (change branch).
+         -C=HEAD: it checks out the given branch before exit (change branch).
     
     Other options:
     
-        -q=false: it does not print the command lines (quiet).
-        -v=false: it explains intermediate steps (verbose).
-        -n=false: it does not run any command (noop).
+         -q=false: it does not print the command lines (quiet).
+         -v=false: it explains intermediate steps (verbose).
+         -n=false: it does not run any command (noop).
+      -bash=: name of the bash function to use with complete (bash completion)
     
     git-greb checks the following options in the usual git configuration files:
     
