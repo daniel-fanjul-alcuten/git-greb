@@ -280,7 +280,7 @@ func bashCompletion(funcname string) string {
 		case $prev in
 			-C|--C)
 				local branches=$(git for-each-ref refs/heads --format '%%(refname:short)' -s)
-				COMPREPLY=( $(compgen -W "$branches" -- $cur) )
+				COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
 				return
 				;;
 			-bash|--bash)
@@ -292,12 +292,12 @@ func bashCompletion(funcname string) string {
 	case $cur in
 		--*)
 			local opts="--bash --t --dot --x --C --r --m --i --c --s --d --l --q --v --n"
-			COMPREPLY=( $(compgen -W "$opts" -- $cur) )
+			COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
 			return
 			;;
 	esac
 	local opts="-bash -t -dot -x -C -r -m -i -c -s -d -l -q -v -n"
-	COMPREPLY=( $(compgen -W "$opts" -- $cur) )
+	COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
 }`, funcname)
 }
 
