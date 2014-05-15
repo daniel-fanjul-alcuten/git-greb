@@ -153,6 +153,9 @@ func (ns *nodesort) Swap(i, j int) {
 
 func (g *graph) text(n *node, indent, i string, current,
 	currentColor, remoteColor, resetColor string) (s string) {
+	if len(indent)/len(i) > 30 {
+		return
+	}
 	var nodes nodesort
 	if n == nil {
 		for _, n := range g.nodes {
