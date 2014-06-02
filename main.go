@@ -352,7 +352,7 @@ func greb(branches []string) (err error) {
 		}
 		return
 	}
-	current := branch
+	current, _ := getAbbrevSymbolicFullName("HEAD")
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 	defer func() {
