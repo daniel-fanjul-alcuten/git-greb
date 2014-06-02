@@ -325,12 +325,11 @@ func greb(branches []string) (err error) {
 			return
 		}
 	} else {
-		branches = filterBranches(branches)
 		if g, err = fillGraphForBranches(branches); err != nil {
 			return
 		}
 	}
-	current, _ := getAbbrevSymbolicFullName("HEAD")
+	fullcurrent, current, _ := getSymbolicFullNames("HEAD")
 	if graphtxt {
 		fmt.Print(g.text(nil, "", "  ", current, currentColorCode, remoteColorCode,
 			resetColorCode))
@@ -352,7 +351,8 @@ func greb(branches []string) (err error) {
 		}
 		return
 	}
-	branch, _ := getAbbrevSymbolicFullName(change)
+	updateGrebHeadRef(fullcurrent)
+	_, branch, _ := getSymbolicFullNames(change)
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 	defer func() {
@@ -389,19 +389,14 @@ func greb(branches []string) (err error) {
 	return
 }
 
-func filterBranches(branches []string) []string {
-	fb := make([]string, 0, len(branches))
-	for _, b := range branches {
-		if n, err := getAbbrevSymbolicFullName(b); err == nil {
-			fb = append(fb, n)
-		}
-	}
-	return fb
-}
+const (
+	refsHeads   = "refs/heads/"
+	refsRemotes = "refs/remotes/"
+)
 
 func fillGraphForAllBranches() (g *graph, err error) {
-	cmd := newCommand(verbose, false, "git", "for-each-ref", "refs/heads/",
-		"--format", "%(refname:short)")
+	cmd := newCommand(verbose, false, "git", "for-each-ref", refsHeads,
+		"--format", "%(refname)")
 	var outpipe io.ReadCloser
 	if outpipe, err = cmd.StdoutPipe(); err != nil {
 		err = cmdError(cmd, err)
@@ -431,37 +426,51 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 	pending := append([]string(nil), branches...)
 	processed := make(map[string]struct{}, len(branches))
 	for len(pending) > 0 {
-		var branch string
-		branch, pending = pending[0], pending[1:]
-		if _, ok := processed[branch]; !ok {
-			processed[branch] = struct{}{}
-			n, _ := g.node(ref{"refs/heads/" + branch, "."})
-			n.branch = branch
-			var remote string
-			var refnames []string
-			if remote, refnames, err = getTrackingInfo(branch); err != nil {
-				return
-			}
-			if remote == "." {
-				for _, r := range refnames {
-					if branch, err := getAbbrevSymbolicFullName(r); err == nil {
-						// TODO tracking ref is assumed to be a branch
-						u, _ := g.node(ref{"refs/heads/" + branch, remote})
-						g.edge(n, u, r)
-						pending = append(pending, branch)
-					}
+		var b string
+		b, pending = pending[0], pending[1:]
+		var refname, branch string
+		if refname, branch, err = getSymbolicFullNames(b); err != nil {
+			continue
+		}
+		if branch == "" {
+			continue
+		}
+		if _, ok := processed[branch]; ok {
+			continue
+		}
+		processed[branch] = struct{}{}
+		n, _ := g.node(ref{refname, "."})
+		n.branch = branch
+		var remote string
+		var rr []string
+		if remote, rr, err = getTrackingInfo(branch); err != nil {
+			continue
+		}
+		if remote == "." {
+			for _, r := range rr {
+				var fn, bn string
+				if fn, bn, err = getSymbolicFullNames(r); err != nil {
+					continue
 				}
-			} else if remote != "" {
-				for _, r := range refnames {
-					u, ok := g.node(ref{r, remote})
-					if ok {
-						g.edge(n, u, r)
-					} else if branch, err := findRemoteTrackingBranch(u.ref); err == nil {
-						u.branch = branch
-						g.edge(n, u, r)
-					} else {
-						delete(g.nodes, u.ref)
-					}
+				if bn == "" {
+					continue
+				}
+				u, _ := g.node(ref{fn, remote})
+				g.edge(n, u, r)
+				pending = append(pending, fn)
+			}
+		} else if remote != "" {
+			for _, r := range rr {
+				u, ok := g.node(ref{r, remote})
+				if ok {
+					g.edge(n, u, r)
+				} else if rn, err := findRemoteTrackingBranch(u.ref); err != nil {
+					delete(g.nodes, u.ref)
+				} else if !strings.HasPrefix(rn, refsRemotes) {
+					delete(g.nodes, u.ref)
+				} else {
+					u.branch = rn[len(refsRemotes):]
+					g.edge(n, u, r)
 				}
 			}
 		}
@@ -473,7 +482,7 @@ func getTrackingInfo(branch string) (remote string, refnames []string, err error
 	cmd := newCommand(verbose, false, "git", "config", "branch."+branch+".remote")
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
-		err = nil
+		err = cmdError(cmd, err)
 		if verbose {
 			logPrintf("-> no config\n")
 		}
@@ -498,17 +507,22 @@ func getTrackingInfo(branch string) (remote string, refnames []string, err error
 	for scanner.Scan() {
 		refnames = append(refnames, scanner.Text())
 	}
+	if err = scanner.Err(); err != nil {
+		refnames = nil
+		return
+	}
 	if verbose {
 		logPrintf("-> %s\n", strings.Join(refnames, ", "))
 	}
 	if err = cmd.Wait(); err != nil {
-		err = nil
+		err = cmdError(cmd, err)
+		refnames = nil
 		return
 	}
 	return
 }
 
-func findRemoteTrackingBranch(r ref) (branch string, err error) {
+func findRemoteTrackingBranch(r ref) (refname string, err error) {
 	// there is no git command to retrieve it, remote.<remote>.fetch is parsed
 	cmd := newCommand(verbose, false, "git", "config", "--get-all",
 		"remote."+r.remote+".fetch")
@@ -544,10 +558,11 @@ func findRemoteTrackingBranch(r ref) (branch string, err error) {
 		}
 		if strings.HasPrefix(r.name, f) {
 			b := l + r.name[len(f):]
-			if b, err = getAbbrevSymbolicFullName(b); err != nil {
+			var fn string
+			if fn, _, err = getSymbolicFullNames(b); err != nil {
 				return
 			}
-			branch = b
+			refname = fn
 			return
 		}
 	}
@@ -555,9 +570,8 @@ func findRemoteTrackingBranch(r ref) (branch string, err error) {
 	return
 }
 
-func getAbbrevSymbolicFullName(refname string) (fullname string, err error) {
-	cmd := newCommand(verbose, false, "git", "rev-parse", "--symbolic-full-name",
-		"--abbrev-ref", refname)
+func getSymbolicFullNames(refname string) (fullname, shortname string, err error) {
+	cmd := newCommand(verbose, false, "git", "rev-parse", "--symbolic-full-name", refname)
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
 		err = cmdError(cmd, err)
@@ -569,6 +583,31 @@ func getAbbrevSymbolicFullName(refname string) (fullname string, err error) {
 	fullname = strings.TrimSpace(string(output))
 	if verbose {
 		logPrintf("-> %s\n", fullname)
+	}
+	if strings.HasPrefix(fullname, refsHeads) {
+		shortname = fullname[len(refsHeads):]
+	}
+	return
+}
+
+func updateGrebHeadRef(current string) (err error) {
+	var cmd *exec.Cmd
+	if current == "HEAD" {
+		var hash string
+		if hash, err = revParse("HEAD"); err != nil {
+			return
+		}
+		cmd = newCommand(verbose, false, "git", "update-ref", "--no-deref", "GREB_HEAD", hash)
+	} else {
+		cmd = newCommand(verbose, false, "git", "symbolic-ref", "GREB_HEAD", current)
+	}
+	if !noop {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err = cmd.Run(); err != nil {
+			err = cmdError(cmd, err)
+			return
+		}
 	}
 	return
 }
@@ -610,8 +649,25 @@ func pullBranch(n *node, current *string) (err error) {
 }
 
 func deleteBranchIfMerged(g *graph, n *node, branch, current *string) (err error) {
+	var hash string
+	if hash, err = revParse(n.branch); err != nil {
+		return
+	}
+	for u := range n.upstreams {
+		var uhash string
+		if uhash, err = revParse(u.branch); err != nil {
+			return
+		}
+		if uhash == hash {
+			return deleteBranch(g, n, branch, current)
+		}
+	}
+	return
+}
+
+func revParse(branch string) (hash string, err error) {
 	cmd := newCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
-		n.branch)
+		branch)
 	var output []byte
 	if output, err = cmd.CombinedOutput(); err != nil {
 		err = cmdError(cmd, err)
@@ -620,28 +676,9 @@ func deleteBranchIfMerged(g *graph, n *node, branch, current *string) (err error
 		}
 		return
 	}
-	hash := strings.TrimSpace(string(output))
+	hash = strings.TrimSpace(string(output))
 	if verbose {
 		logPrintf("-> %s\n", hash)
-	}
-	for u := range n.upstreams {
-		cmd := newCommand(verbose, false, "git", "rev-parse", "-q", "--verify",
-			u.branch)
-		var output []byte
-		if output, err = cmd.CombinedOutput(); err != nil {
-			err = cmdError(cmd, err)
-			if verbose {
-				logPrintf("-> no hash\n")
-			}
-			return
-		}
-		uhash := strings.TrimSpace(string(output))
-		if verbose {
-			logPrintf("-> %s\n", uhash)
-		}
-		if uhash == hash {
-			return deleteBranch(g, n, branch, current)
-		}
 	}
 	return
 }
