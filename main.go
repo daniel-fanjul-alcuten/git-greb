@@ -330,18 +330,18 @@ func greb(branches []string) (err error) {
 			return
 		}
 	}
-	branch, _ := getAbbrevSymbolicFullName(change)
+	current, _ := getAbbrevSymbolicFullName("HEAD")
 	if graphtxt {
-		fmt.Print(g.text(nil, "", "  ", branch, currentColorCode, remoteColorCode,
+		fmt.Print(g.text(nil, "", "  ", current, currentColorCode, remoteColorCode,
 			resetColorCode))
 		return
 	} else if graphdot {
-		fmt.Print(g.dot(branch, currentColorName, remoteColorName))
+		fmt.Print(g.dot(current, currentColorName, remoteColorName))
 		return
 	} else if graphxlib {
 		cmd := newCommand(!quiet, true, "dot", "-Txlib")
 		if !noop {
-			cmd.Stdin = bytes.NewBufferString(g.dot(branch, currentColorName,
+			cmd.Stdin = bytes.NewBufferString(g.dot(current, currentColorName,
 				remoteColorName))
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
@@ -352,7 +352,7 @@ func greb(branches []string) (err error) {
 		}
 		return
 	}
-	current, _ := getAbbrevSymbolicFullName("HEAD")
+	branch, _ := getAbbrevSymbolicFullName(change)
 	s := make(chan os.Signal, 1)
 	signal.Notify(s, os.Interrupt)
 	defer func() {
