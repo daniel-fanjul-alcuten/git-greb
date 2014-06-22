@@ -55,29 +55,27 @@ func TestGraphRemove(t *testing.T) {
 	if l := len(updates); l != 8 {
 		t.Error(l)
 	} else {
-		if u := updates[0]; u != (rmUpstream{"aa", "ac"}) {
-			t.Error(u)
+		bools := map[interface{}]bool{
+			rmUpstream{"aa", "ac"}:    false,
+			setRemote{"aa", "origin"}: false,
+			addUpstream{"aa", "d"}:    false,
+			addUpstream{"aa", "e"}:    false,
+			rmUpstream{"bb", "bc"}:    false,
+			setRemote{"bb", "origin"}: false,
+			addUpstream{"bb", "d"}:    false,
+			addUpstream{"bb", "e"}:    false,
 		}
-		if u := updates[1]; u != (setRemote{"aa", "origin"}) {
-			t.Error(u)
+		for _, u := range updates {
+			if _, ok := bools[u]; !ok {
+				t.Error(u)
+			} else {
+				bools[u] = true
+			}
 		}
-		if u := updates[2]; u != (addUpstream{"aa", "d"}) {
-			t.Error(u)
-		}
-		if u := updates[3]; u != (addUpstream{"aa", "e"}) {
-			t.Error(u)
-		}
-		if u := updates[4]; u != (rmUpstream{"bb", "bc"}) {
-			t.Error(u)
-		}
-		if u := updates[5]; u != (setRemote{"bb", "origin"}) {
-			t.Error(u)
-		}
-		if u := updates[6]; u != (addUpstream{"bb", "d"}) {
-			t.Error(u)
-		}
-		if u := updates[7]; u != (addUpstream{"bb", "e"}) {
-			t.Error(u)
+		for u, b := range bools {
+			if !b {
+				t.Error(u)
+			}
 		}
 	}
 	if l := len(g.nodes); l != 4 {
