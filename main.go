@@ -430,6 +430,7 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 		b, pending = pending[0], pending[1:]
 		var refname, branch string
 		if refname, branch, err = getSymbolicFullNames(b); err != nil {
+			err = nil
 			continue
 		}
 		if branch == "" {
@@ -444,12 +445,14 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 		var remote string
 		var rr []string
 		if remote, rr, err = getTrackingInfo(branch); err != nil {
+			err = nil
 			continue
 		}
 		if remote == "." {
 			for _, r := range rr {
 				var fn, bn string
 				if fn, bn, err = getSymbolicFullNames(r); err != nil {
+					err = nil
 					continue
 				}
 				if bn == "" {
@@ -465,6 +468,7 @@ func fillGraphForBranches(branches []string) (g *graph, err error) {
 				if ok {
 					g.edge(n, u, r)
 				} else if rn, err := findRemoteTrackingBranch(u.ref); err != nil {
+					err = nil
 					delete(g.nodes, u.ref)
 				} else if !strings.HasPrefix(rn, refsRemotes) {
 					delete(g.nodes, u.ref)
